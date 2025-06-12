@@ -52,7 +52,7 @@ with open("submit_jobs.sh", "w") as fjob:
                 shell=config["shell"],
                 env_setup_script = config["env"]["script"],
                 source_dir=str(source_dir),
-                build_dir=str(source_dir/"build"),
+                target_dir=str(source_dir/"build/src/problems"),
                 test_in_dir=str(source_dir/"tests"),
                 result_dir = result_dir,
                 test_name=test["name"],
