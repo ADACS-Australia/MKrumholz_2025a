@@ -1,7 +1,7 @@
 #!{{ shell }}
 #SBATCH --job-name={{ test_name }}_n{{ cores }}
 #SBATCH --ntasks={{ cores }}
-#SBATCH --output={{ test_name }}_n{{ cores }}.out
+#SBATCH --output={{ result_dir }}/{{ test_name }}_n{{ cores }}.out
 #SBATCH --time={{ time_limit }}
 #SBATCH --mem={{ memory }}
 
