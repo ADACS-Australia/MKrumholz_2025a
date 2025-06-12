@@ -1,0 +1,22 @@
+scheduler: slurm  # Can switch to "pbs" later
+shell: /bin/bash
+
+env:
+  script: $MY_QUOKKA_VENV
+
+paths:
+  working_dir: ./performance
+
+tests:
+  - name: test_hydro3d_blast
+    target: HydroBlast3D/test_hydro3d_blast
+    input_file: blast_32.in
+    cmake_cache:
+      - -DCMAKE_BUILD_TYPE=Release 
+      - -DQUOKKA_PYTHON=OFF 
+      - -DAMReX_SPACEDIM=3
+    cores: [1, 2, 4]
+    time_limit: 00:10:00
+    memory: 4G
+
+ 

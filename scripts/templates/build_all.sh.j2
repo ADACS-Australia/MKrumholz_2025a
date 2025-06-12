@@ -1,0 +1,24 @@
+#!{{ shell }}
+
+# Create a working directory
+mkdir -p {{ working_dir }}
+cd {{ working_dir }}
+
+# Create a test directory
+mkdir -p {{ test_dir }}
+cd {{ test_dir }}
+
+# Load necessary modules and activate the Python virtual environment
+source {{ env_setup_script }}
+
+# Pull the latest code from the repository
+git clone --recursive https://github.com/quokka-astro/quokka.git
+
+# Build the tests
+cd quokka
+mkdir -p build
+cd build
+{% for test in tests %}
+cmake --fresh .. -G Ninja {{ test.cmake_cache | join(' ') }} 
+ninja -j4 {{ test.name }}
+{% endfor %}
