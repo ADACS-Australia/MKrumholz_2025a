@@ -46,7 +46,7 @@ with open("submit_jobs.sh", "w") as fjob:
     for test in config["tests"]:
         for core in test["cores"]:
             # create a directory for each test job
-            result_dir = str(working_dir/"results"/f"{test['name']}_n{core}")
+            result_dir = str(working_dir/timestamp/"results"/f"{test['name']}_n{core}")
             os.makedirs(result_dir, exist_ok=True)
             rendered = template.render(
                 shell=config["shell"],
