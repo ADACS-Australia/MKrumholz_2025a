@@ -1,4 +1,4 @@
-scheduler: slurm  # Can switch to "pbs" later
+scheduler: slurm  # todo: add support for "pbs"
 shell: /bin/bash
 
 env:
