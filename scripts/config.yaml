@@ -1,11 +1,12 @@
 scheduler: slurm  # todo: add support for "pbs"
 shell: /bin/bash
+gpu_build: cuda # cuda, hip or null(cpu build) 
 
 env:
-  script: $MY_QUOKKA_VENV
+  script: env_setup.sh
 
 paths:
-  working_dir: ./performance
+  working_dir: ./
 
 tests:
   - name: test_hydro3d_blast

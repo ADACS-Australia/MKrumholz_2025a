@@ -5,8 +5,8 @@ mkdir -p {{ working_dir }}
 cd {{ working_dir }}
 
 # Create a test directory
-mkdir -p {{ test_dir }}
-cd {{ test_dir }}
+mkdir -p {{ test_instance }}
+cd {{ test_instance }}
 
 # Load necessary modules and activate the Python virtual environment
 source {{ env_setup_script }}
@@ -19,6 +19,6 @@ cd quokka
 mkdir -p build
 cd build
 {% for test in tests %}
-cmake --fresh .. -G Ninja {{ test.cmake_cache | join(' ') }} 
+cmake --fresh .. -G Ninja {{ test.cmake_cache | join(' ') }} {{ gpu_build_flag }}
 ninja -j4 {{ test.name }}
 {% endfor %}

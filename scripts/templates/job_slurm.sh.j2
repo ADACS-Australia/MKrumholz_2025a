@@ -1,7 +1,7 @@
 #!{{ shell }}
 #SBATCH --job-name={{ test_name }}_n{{ cores }}
 #SBATCH --ntasks={{ cores }}
-#SBATCH --output={{ result_dir }}/{{ test_name }}_n{{ cores }}.out
+#SBATCH --output={{ result_dir }}/{{ test_name }}_n{{ cores }}_%j.out
 #SBATCH --time={{ time_limit }}
 #SBATCH --mem={{ memory }}
 
@@ -10,4 +10,4 @@ source {{env_setup_script}}
 
 # Run step
 cd {{ result_dir }}
-mpirun -n {{ cores }} {{ target_dir }}/{{ target }} {{test_in_dir }}/{{ input_file }}
+mpirun -n {{ cores }} {{ target }} {{ input_file }} {{ runtime_args }}
