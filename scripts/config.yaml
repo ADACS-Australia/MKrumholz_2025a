@@ -8,6 +8,10 @@ env:
 paths:
   working_dir: ./
 
+scaling:
+ strategy: weak_1d
+ max_cores: 4
+
 tests:
   - name: test_hydro3d_blast
     target: HydroBlast3D/test_hydro3d_blast
@@ -16,8 +20,8 @@ tests:
       - -DCMAKE_BUILD_TYPE=Release 
       - -DQUOKKA_PYTHON=OFF 
       - -DAMReX_SPACEDIM=3
-    cores: [1, 2, 4]
     time_limit: 00:10:00
     memory: 4G
+    
 
  

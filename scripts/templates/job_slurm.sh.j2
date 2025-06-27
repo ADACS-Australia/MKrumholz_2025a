@@ -11,3 +11,4 @@ source {{env_setup_script}}
 # Run step
 cd {{ result_dir }}
 mpirun -n {{ cores }} {{ target }} {{ input_file }} {{ runtime_args }}
+

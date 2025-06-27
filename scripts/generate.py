@@ -5,6 +5,7 @@ import subprocess
 import re
 import yaml
 from jinja2 import Template
+# import numpy as np
 
 from datetime import datetime
 
@@ -36,10 +37,8 @@ def load_config(file="config.yaml"):
 
     return config
 
-with open("config.yaml") as f:
-    config = yaml.safe_load(f)
 
-class JobController():
+class JobController:
     # templates to use
     BUILD_TEMPLATE = "templates/build_all.sh.j2"
     JOB_TEMPLATE = "templates/job_slurm.sh.j2"
@@ -83,6 +82,33 @@ class JobController():
             raise FileNotFoundError(f"{path} doesn't exist.")  
         return path
 
+    def _read_ncell(self, input_file) -> list:
+        with open(input_file) as f:
+            content = f.read()
+            pattern = r'amr\.n_cell\s*=\s*((?:\d+\s*)+)'
+            match = re.search(pattern, content)
+            if not match:
+                raise ValueError("amr.n_cell not found or invalid format in input file")
+            
+            # Split the matched group into integers
+            nums = [int(x) for x in match.group(1).strip().split()]
+
+        return nums
+    
+    def _get_scaling_strategy(self):
+        scaling = self.config["scaling"]["strategy"]
+        max_cores = self.config["scaling"]["max_cores"]
+
+        strategies = {
+        "weak_1d": ScalingStrategy.weak_1d_scaling,
+        "weak_3d": ScalingStrategy.weak_3d_scaling
+        }
+
+        if scaling not in strategies:
+            raise ValueError(f"Unsupported scaling strategy: {scaling}")
+
+        return strategies[scaling], max_cores
+
     def submit_job(self, jobfile:str):
         try:
             submit = subprocess.run(["sbatch", jobfile], capture_output=True, text=True, check=True)
@@ -120,27 +146,35 @@ class JobController():
             exit(1)
         print("Finish building the tests.")
 
-
     def generate_job_scripts(self) -> None:
 
         # Load slurm job templates
         with open(self.JOB_TEMPLATE) as f:
             job_temp = Template(f.read())
-   
+
+        # get scaling strategy
+        scaling_func, max_cores = self._get_scaling_strategy()
         for test in config["tests"]:
-            for core in test["cores"]:
+            input_file = str(self._validate_path(self.repo_dir/"inputs"/test["input_file"]))
+            # get init n_cell
+            init_ncell = self._read_ncell(input_file)
+            core_dict = scaling_func(init_ncell, max_cores)
+
+            for core, arg_value in core_dict.items():
                 # create a directory for each test job
                 result_dir = str(self.result_dir_base/f"{test['name']}_n{core}")
                 os.makedirs(result_dir, exist_ok=True)
                 rendered = job_temp.render(
                     shell=config["shell"],
                     env_setup_script = config["env"]["script"],
-                    target=str(self._validate_path(self.repo_dir/"build/src/problems"/test["target"])),
-                    input_file=str(self._validate_path(self.repo_dir/"inputs"/test["input_file"])),
+                    test_name = test["name"],
+                    target=str(self.repo_dir/"build/src/problems"/test["target"]),
+                    input_file=input_file,
                     result_dir = result_dir,
                     cores=core,
                     time_limit=test["time_limit"],
-                    memory=test["memory"]
+                    memory=test["memory"],
+                    runtime_args = arg_value
                 )
 
                 job_name = result_dir + f"/{test['name']}_n{core}.sh"
@@ -150,63 +184,30 @@ class JobController():
                 # job_id = self.submit_job(job_name)
 
 
+class ScalingStrategy:
+
+    @classmethod
+    def _convert_to_amr_param(cls, box: list) -> str:
+        value = " ".join(str(x) for x in box)
+        return f'amr.n_cell={value}'
     
+    @classmethod
+    def weak_3d_scaling(cls, init_box:list, max_cores: int):
+        dim = len(init_box) #todo: raise error when it's zero 
+        core_dict = {}
+        cores = 1
+        while cores**dim <= max_cores:
+            box = init_box[:]
+            box = [x * 2 for x in box]
+            core_dict[cores] = cls._convert_to_amr_param(box)
+            cores *= 2
 
-
-
-
-
-
-
-
-
-
- 
-# def generate_job_scripts(config: dict, template="templates/job_slurm.sh.j2") -> None:
-
-#     source_dir = config["paths"]["working_dir"]/timestamp/"quokka"
-#     # Load slurm job templates
-#     with open(template) as f:
-#         job_temp = Template(f.read())
-
-   
-#     for test in config["tests"]:
-#         for core in test["cores"]:
-#             # create a directory for each test job
-#             result_dir = str(working_dir/timestamp/"results"/f"{test['name']}_n{core}")
-#             os.makedirs(result_dir, exist_ok=True)
-#             rendered = job_temp.render(
-#                 shell=config["shell"],
-#                 env_setup_script = config["env"]["script"],
-#                 source_dir=str(source_dir),
-#                 target_dir=str(source_dir/"build/src/problems"),
-#                 test_in_dir=str(source_dir/"tests"),
-#                 result_dir = result_dir,
-#                 test_name=test["name"],
-#                 target=test["target"],
-#                 input_file=test["input_file"],
-#                 cores=core,
-#                 time_limit=test["time_limit"],
-#                 memory=test["memory"]
-#             )
-
-#             job_name = result_dir + f"/{test['name']}_n{core}.sh"
-#             with open(job_name, "w") as f:
-#                 f.write(rendered)
-#             print(f"✅ Job script generated: {job_name}")
-#             job_id = submit_job(job_name)
-
-            
-
-    
-    
+        return core_dict
 
 
 
 if __name__ == "__main__":
     config = load_config()
-    # generate_build_file(config=config)
-    # generate_job_scripts(config=config)
     jobs = JobController(config)
     jobs.generate_build_file()
     jobs.generate_job_scripts()
