@@ -1,16 +1,22 @@
 #!{{ shell }}
 #SBATCH --job-name={{ test_name }}_n{{ cores }}
-#SBATCH --ntasks={{ cores }}
+#SBATCH --ntasks-per-node={{ cores_per_node }}
+#SBATCH --nodes={{ nodes }}
 #SBATCH --output={{ result_dir }}/{{ test_name }}_n{{ cores }}_%j.out
 #SBATCH --time={{ time_limit }}
 #SBATCH --mem={{ memory }}
 {% if use_gpu %}
-#SBATCH --gres=gpu:{{ cores }}
+#SBATCH --gres=gpu:{{ cores_per_node }}
 {% endif %}
+
+{% if use_partition %}
+#SBATCH --partition={{ partition }}
+{% endif %}
+
 # Setup and activate environment
 source {{env_setup_script}}
 
 # Run step
 cd {{ result_dir }}
-mpirun -n {{ cores }} {{ target }} {{ input_file }} {{ runtime_args }}
+srun {{ target }} {{ input_file }} {{ runtime_args }}
 

@@ -1,6 +1,8 @@
 scheduler: slurm  # todo: add support for "pbs"
 shell: /bin/bash
 gpu_build: cuda # cuda, hip or null(cpu build) 
+partition:
+core_per_node: 4
 
 env:
   script: env_setup.sh
@@ -11,7 +13,7 @@ paths:
 
 scaling:
  strategy: weak_3d
- max_cores: 4
+ max_cores: 64
 
 tests:
   - name: test_hydro3d_blast

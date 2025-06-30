@@ -46,6 +46,7 @@ class JobController:
     def __init__(self, config:dict):
         self.config = config
         self._add_gpu_build_dflag()
+        self.core_per_node = config["core_per_node"]
         self._set_timestamp()
         self._set_paths()
 
@@ -58,7 +59,11 @@ class JobController:
             
         elif self.config["gpu_build"].upper() == "HIP":
             self.gpu_dflag = "-DAMReX_GPU_BACKEND=HIP"
-        
+
+    
+    def _estimate_nnodes(self, ncores):
+        nnodes = (int(ncores) + int(self.core_per_node) - 1) // int(self.core_per_node)
+        return nnodes
     
     def _set_timestamp(self):
         self.timestamp = datetime.today().strftime("%Y%m%d%H%M%S")
@@ -146,13 +151,15 @@ class JobController:
         print("Finish building the tests.")
 
     def _generate_job_script(self, job_template:Template, test_item:dict, 
-                             input_file:str, result_dir:str, core:int,
-                             ncell_params:str):
+                             input_file:str, result_dir:str, core:int, 
+                             node:int, ncell_params:str):
         # check whether the test is built using gpu
         use_gpu = len(self.gpu_dflag) != 0
         # disable ncell_param for a single core
         if core == 1:
             ncell_params = ""
+        # check wehther partition is chosen
+        use_partition = self.config["partition"] is not None
 
         rendered = job_template.render(
                     shell=config["shell"],
@@ -161,11 +168,14 @@ class JobController:
                     target=str(self.repo_dir/"build/src/problems"/test_item["target"]),
                     input_file=input_file,
                     result_dir = result_dir,
-                    cores=core,
-                    time_limit=test_item["time_limit"],
-                    memory=test_item["memory"],
+                    cores = core,
+                    nodes = node,
+                    cores_per_node = self.core_per_node,
+                    time_limit = test_item["time_limit"],
+                    memory = test_item["memory"],
                     runtime_args = ncell_params,
-                    use_gpu = use_gpu
+                    use_gpu = use_gpu,
+                    use_partition = use_partition
                 )
         
         return rendered
@@ -184,12 +194,13 @@ class JobController:
             init_ncell = self._read_ncell(input_file)
             core_dict = scaling_func(init_ncell, max_cores)
             for core, arg_value in core_dict.items():
+                node = self._estimate_nnodes(core)
                 # create a directory for each test job
                 result_dir = str(self.result_dir_base/f"{test['name']}_n{core}")
                 os.makedirs(result_dir, exist_ok=True)
                 
                 rendered = self._generate_job_script(job_temp, test, input_file, 
-                                                     result_dir, core, arg_value)
+                                                     result_dir, core, node, arg_value)
 
                 job_name = result_dir + f"/{test['name']}_n{core}.sh"
                 with open(job_name, "w") as f:
