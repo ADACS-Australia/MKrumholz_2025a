@@ -5,6 +5,7 @@ import subprocess
 import re
 import yaml
 from jinja2 import Template
+import pandas as pd
 # import numpy as np
 
 from datetime import datetime
@@ -153,11 +154,22 @@ class JobController:
     def _generate_job_script(self, job_template:Template, test_item:dict, 
                              input_file:str, result_dir:str, core:int, 
                              node:int, ncell_params:str):
+        # get job info
+        params = {
+            "test_name": test_item["name"],
+            "n_cell": ncell_params[0],
+            "n_cores": core,
+            "cores_per_node": self.core_per_node,
+            "n_nodes": node,
+        }
+
         # check whether the test is built using gpu
         use_gpu = len(self.gpu_dflag) != 0
         # disable ncell_param for a single core
         if core == 1:
-            ncell_params = ""
+            ncell_args = "" 
+        else:
+            ncell_args = ncell_params[1]
         # check wehther partition is chosen
         use_partition = self.config["partition"] is not None
 
@@ -173,12 +185,12 @@ class JobController:
                     cores_per_node = self.core_per_node,
                     time_limit = test_item["time_limit"],
                     memory = test_item["memory"],
-                    runtime_args = ncell_params,
+                    runtime_args = ncell_args,
                     use_gpu = use_gpu,
                     use_partition = use_partition
                 )
         
-        return rendered
+        return params, rendered
 
     def generate_job_scripts(self) -> None:
 
@@ -188,6 +200,10 @@ class JobController:
 
         # get scaling strategy
         scaling_func, max_cores = self._get_scaling_strategy()
+
+        # Initiate dataframe
+        output = JobResult()
+        
         for test in config["tests"]:
             input_file = str(self.config["paths"]["test_inputs"]/test["input_file"])
             # get init n_cell
@@ -199,22 +215,21 @@ class JobController:
                 result_dir = str(self.result_dir_base/f"{test['name']}_n{core}")
                 os.makedirs(result_dir, exist_ok=True)
                 
-                rendered = self._generate_job_script(job_temp, test, input_file, 
+                params, rendered = self._generate_job_script(job_temp, test, input_file, 
                                                      result_dir, core, node, arg_value)
 
                 job_name = result_dir + f"/{test['name']}_n{core}.sh"
                 with open(job_name, "w") as f:
                     f.write(rendered)
                 print(f"✅ Job script generated: {job_name}")
-                # job_id = self.submit_job(job_name)
-
-
+                job_id = self.submit_job(job_name)
+                output.add_job_entry(job_id, **params)
 class ScalingStrategy:
 
     @classmethod
     def _convert_to_amr_param(cls, box: list) -> str:
         value = " ".join(str(x) for x in box)
-        return f'amr.n_cell={value}'
+        return (f'({value})', f'amr.n_cell={value}')
     
     @classmethod
     def weak_3d_scaling(cls, init_box:list, max_cores: int):
@@ -226,9 +241,38 @@ class ScalingStrategy:
             core_dict[cores] = cls._convert_to_amr_param(box)
             box = [x * 2 for x in box]            
             cores *= 2**dim
-
         return core_dict
 
+class JobResult:
+    Job_field = {
+            "test_name": str,
+            "job_id": int,
+            "n_cell": str,
+            "n_cores": int,
+            "cores_per_node": int,
+            "n_nodes": int,
+        }
+    
+    Result_field = {
+        "exit_status": str,
+        "microseconds_per_update": float,
+        "megaupdates_per_second": float,
+        "microseconds_per_update_per_core": float,
+        "megaupdates_per_second_per_core": float,
+
+    }
+
+    Columns = Job_field | Result_field
+    def __init__(self):
+        self.df = pd.DataFrame(columns=self.Columns.keys())
+        
+    def add_job_entry(self, job_id, **kwargs):
+        row = {"job_id": job_id}
+        for key in self.Job_field.keys():
+            if key != "job_id":
+                row[key] = kwargs.get(key, None)
+        self.df.loc[len(self.df)] = row
+    
 
 
 if __name__ == "__main__":
