@@ -51,12 +51,12 @@ class JobController:
 
     def _add_gpu_build_dflag(self):
         self.gpu_dflag = ""
-
         if self.config["gpu_build"] is None:
             pass
-        elif self.config["gpu_build"].upper == "CUDA":
+        elif self.config["gpu_build"].upper() == "CUDA":
             self.gpu_dflag = "-DAMReX_GPU_BACKEND=CUDA"
-        elif self.config["gpu_build"].upper == "HIP":
+            
+        elif self.config["gpu_build"].upper() == "HIP":
             self.gpu_dflag = "-DAMReX_GPU_BACKEND=HIP"
         
     
@@ -150,7 +150,6 @@ class JobController:
                              ncell_params:str):
         # check whether the test is built using gpu
         use_gpu = len(self.gpu_dflag) != 0
-
         # disable ncell_param for a single core
         if core == 1:
             ncell_params = ""
@@ -184,23 +183,11 @@ class JobController:
             # get init n_cell
             init_ncell = self._read_ncell(input_file)
             core_dict = scaling_func(init_ncell, max_cores)
-
             for core, arg_value in core_dict.items():
                 # create a directory for each test job
                 result_dir = str(self.result_dir_base/f"{test['name']}_n{core}")
                 os.makedirs(result_dir, exist_ok=True)
-                # rendered = job_temp.render(
-                #     shell=config["shell"],
-                #     env_setup_script = config["env"]["script"],
-                #     test_name = test["name"],
-                #     target=str(self.repo_dir/"build/src/problems"/test["target"]),
-                #     input_file=input_file,
-                #     result_dir = result_dir,
-                #     cores=core,
-                #     time_limit=test["time_limit"],
-                #     memory=test["memory"],
-                #     runtime_args = arg_value
-                # )
+                
                 rendered = self._generate_job_script(job_temp, test, input_file, 
                                                      result_dir, core, arg_value)
 
@@ -208,7 +195,7 @@ class JobController:
                 with open(job_name, "w") as f:
                     f.write(rendered)
                 print(f"✅ Job script generated: {job_name}")
-                job_id = self.submit_job(job_name)
+                # job_id = self.submit_job(job_name)
 
 
 class ScalingStrategy:
@@ -223,11 +210,11 @@ class ScalingStrategy:
         dim = len(init_box) #todo: raise error when it's zero 
         core_dict = {}
         cores = 1
-        while cores**dim <= max_cores:
-            box = init_box[:]
-            box = [x * 2 for x in box]
+        box = init_box[:]
+        while cores <= max_cores:
             core_dict[cores] = cls._convert_to_amr_param(box)
-            cores *= 2
+            box = [x * 2 for x in box]            
+            cores *= 2**dim
 
         return core_dict
 
@@ -236,7 +223,7 @@ class ScalingStrategy:
 if __name__ == "__main__":
     config = load_config()
     jobs = JobController(config)
-    jobs.generate_build_file()
+    # jobs.generate_build_file()
     jobs.generate_job_scripts()
 
    
