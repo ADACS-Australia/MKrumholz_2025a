@@ -7,9 +7,10 @@ env:
 
 paths:
   working_dir: ./
+  test_inputs: ./
 
 scaling:
- strategy: weak_1d
+ strategy: weak_3d
  max_cores: 4
 
 tests:

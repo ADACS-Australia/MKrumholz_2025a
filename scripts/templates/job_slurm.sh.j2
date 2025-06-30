@@ -4,7 +4,9 @@
 #SBATCH --output={{ result_dir }}/{{ test_name }}_n{{ cores }}_%j.out
 #SBATCH --time={{ time_limit }}
 #SBATCH --mem={{ memory }}
-
+{% if use_gpu %}
+#SBATCH --gres=gpu:{{ cores }}
+{% endif %}
 # Setup and activate environment
 source {{env_setup_script}}
 

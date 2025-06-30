@@ -100,7 +100,6 @@ class JobController:
         max_cores = self.config["scaling"]["max_cores"]
 
         strategies = {
-        "weak_1d": ScalingStrategy.weak_1d_scaling,
         "weak_3d": ScalingStrategy.weak_3d_scaling
         }
 
@@ -146,6 +145,32 @@ class JobController:
             exit(1)
         print("Finish building the tests.")
 
+    def _generate_job_script(self, job_template:Template, test_item:dict, 
+                             input_file:str, result_dir:str, core:int,
+                             ncell_params:str):
+        # check whether the test is built using gpu
+        use_gpu = len(self.gpu_dflag) != 0
+
+        # disable ncell_param for a single core
+        if core == 1:
+            ncell_params = ""
+
+        rendered = job_template.render(
+                    shell=config["shell"],
+                    env_setup_script = config["env"]["script"],
+                    test_name = test_item["name"],
+                    target=str(self.repo_dir/"build/src/problems"/test_item["target"]),
+                    input_file=input_file,
+                    result_dir = result_dir,
+                    cores=core,
+                    time_limit=test_item["time_limit"],
+                    memory=test_item["memory"],
+                    runtime_args = ncell_params,
+                    use_gpu = use_gpu
+                )
+        
+        return rendered
+
     def generate_job_scripts(self) -> None:
 
         # Load slurm job templates
@@ -155,7 +180,7 @@ class JobController:
         # get scaling strategy
         scaling_func, max_cores = self._get_scaling_strategy()
         for test in config["tests"]:
-            input_file = str(self._validate_path(self.repo_dir/"inputs"/test["input_file"]))
+            input_file = str(self.config["paths"]["test_inputs"]/test["input_file"])
             # get init n_cell
             init_ncell = self._read_ncell(input_file)
             core_dict = scaling_func(init_ncell, max_cores)
@@ -164,24 +189,26 @@ class JobController:
                 # create a directory for each test job
                 result_dir = str(self.result_dir_base/f"{test['name']}_n{core}")
                 os.makedirs(result_dir, exist_ok=True)
-                rendered = job_temp.render(
-                    shell=config["shell"],
-                    env_setup_script = config["env"]["script"],
-                    test_name = test["name"],
-                    target=str(self.repo_dir/"build/src/problems"/test["target"]),
-                    input_file=input_file,
-                    result_dir = result_dir,
-                    cores=core,
-                    time_limit=test["time_limit"],
-                    memory=test["memory"],
-                    runtime_args = arg_value
-                )
+                # rendered = job_temp.render(
+                #     shell=config["shell"],
+                #     env_setup_script = config["env"]["script"],
+                #     test_name = test["name"],
+                #     target=str(self.repo_dir/"build/src/problems"/test["target"]),
+                #     input_file=input_file,
+                #     result_dir = result_dir,
+                #     cores=core,
+                #     time_limit=test["time_limit"],
+                #     memory=test["memory"],
+                #     runtime_args = arg_value
+                # )
+                rendered = self._generate_job_script(job_temp, test, input_file, 
+                                                     result_dir, core, arg_value)
 
                 job_name = result_dir + f"/{test['name']}_n{core}.sh"
                 with open(job_name, "w") as f:
                     f.write(rendered)
                 print(f"✅ Job script generated: {job_name}")
-                # job_id = self.submit_job(job_name)
+                job_id = self.submit_job(job_name)
 
 
 class ScalingStrategy:
