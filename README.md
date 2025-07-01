@@ -31,6 +31,13 @@ from hpc_performance_testing import submit_jobs
 
 submit_jobs("./config.yaml")
 ```
+The function `submit_jobs` does the following:
+
+1. create a directory in `working_dir` (specified in `config.yaml`)
+2. clone the quokka repo
+3. build the tests (build option and flags are specified in `config.yaml`)
+4. create HPC jobs and submit them
+5. create a parquet to store information related to job submission (e.g. job_id, cores, nodes)
 
 
 
