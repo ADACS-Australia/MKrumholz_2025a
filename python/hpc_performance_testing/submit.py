@@ -6,8 +6,8 @@ import re
 from datetime import datetime
 from jinja2 import Template
 
-from strategy import ScalingStrategy
-from output import Job_FIELD, JobDataFrame
+from hpc_performance_testing.strategy import ScalingStrategy
+from hpc_performance_testing.output import Job_FIELD, JobDataFrame
 
 class JobCreator:
     # templates to use
