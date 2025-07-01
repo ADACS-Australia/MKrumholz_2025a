@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import stat
+from importlib.resources import files
 
 def resolve_path(path: str):
     # resolve environment variable and ~
@@ -11,3 +12,6 @@ def resolve_path(path: str):
 def make_executable(file:str) -> None:
     """change the file to executable"""
     os.chmod(file, os.stat(file).st_mode | stat.S_IXUSR)
+
+def load_template(template_name):
+    return (files('hpc_performance_testing') / 'templates' / template_name)

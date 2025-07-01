@@ -6,13 +6,14 @@ import re
 from datetime import datetime
 from jinja2 import Template
 
+from hpc_performance_testing.util import load_template
 from hpc_performance_testing.strategy import ScalingStrategy
 from hpc_performance_testing.output import Job_FIELD, JobDataFrame
 
 class JobCreator:
     # templates to use
-    BUILD_TEMPLATE = "templates/build_all.sh.j2"
-    JOB_TEMPLATE = "templates/job_slurm.sh.j2"
+    BUILD_TEMPLATE = load_template("build_all.sh.j2")
+    JOB_TEMPLATE = load_template("job_slurm.sh.j2")
 
     def __init__(self, config:dict):
         self.config = config
@@ -132,7 +133,7 @@ class JobCreator:
             "cores_per_node": self.core_per_node,
             "n_nodes": node,
         }
-
+        
         # check whether the test is built using gpu
         use_gpu = len(self.gpu_dflag) != 0
         # disable ncell_param for a single core
