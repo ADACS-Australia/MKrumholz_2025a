@@ -1,0 +1,9 @@
+name: hpc_testing
+channels:
+  - defaults
+dependencies:
+  - python=3.10
+
+  - pip
+  - pip:
+      - poetry>2.0.0
