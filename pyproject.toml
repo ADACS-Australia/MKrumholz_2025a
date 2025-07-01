@@ -7,7 +7,6 @@ license = "MIT-expat"
 readme = "README.md"
 packages = [
     { include = "hpc_performance_testing", from = "python" },
-    { include = "cli"},
 ]
 
 homepage = "https://github.com/ADACS-Australia/MKrumholz_2025a"
