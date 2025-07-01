@@ -192,17 +192,11 @@ class JobCreator:
                 with open(job_name, "w") as f:
                     f.write(rendered)
                 print(f"✅ Job script generated: {job_name}")
-                # job_id = self.submit_job(job_name)
-                output.add_job_entry(job_id=1, **params)
+                job_id = self.submit_job(job_name)
+                output.add_job_entry(job_id=job_id, **params)
         
         # save dataframe 
         output.save(self.result_dir_base/"job_submission.parquet")
 
-
-# if __name__ == "__main__":
-    # config = load_config()
-    # jobs = JobController(config)
-    # jobs.generate_build_file()
-    # jobs.generate_job_scripts()
 
    
