@@ -1,6 +1,7 @@
 import os
 import stat
 from pathlib import Path
+from typing import Union
 import subprocess
 import re
 import yaml
@@ -222,8 +223,11 @@ class JobController:
                 with open(job_name, "w") as f:
                     f.write(rendered)
                 print(f"✅ Job script generated: {job_name}")
-                job_id = self.submit_job(job_name)
-                output.add_job_entry(job_id, **params)
+                # job_id = self.submit_job(job_name)
+                output.add_job_entry(job_id=1, **params)
+        
+        # save dataframe 
+        output.save(self.result_dir_base/"job_submission.parquet")
 class ScalingStrategy:
 
     @classmethod
@@ -272,8 +276,12 @@ class JobResult:
             if key != "job_id":
                 row[key] = kwargs.get(key, None)
         self.df.loc[len(self.df)] = row
-    
 
+    def save(self, filename:Union[str,os.PathLike]):
+        self.df.to_parquet(filename, index=False)
+    
+    def load(self, filename:str):
+        return pd.read_parquet(filename)
 
 if __name__ == "__main__":
     config = load_config()
