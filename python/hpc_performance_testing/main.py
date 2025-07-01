@@ -1,5 +1,5 @@
 from hpc_performance_testing.config import load_config
-from submit import JobCreator
+from hpc_performance_testing.submit import JobCreator
 
 def submit_jobs(config_file):
     config = load_config(config_file)
