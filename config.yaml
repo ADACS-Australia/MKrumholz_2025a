@@ -1,0 +1,30 @@
+scheduler: slurm  # todo: add support for "pbs"
+shell: /bin/bash
+gpu_build: cuda # cuda, hip or null(cpu build) 
+partition:
+core_per_node: 4
+
+env:
+  script: env_setup.sh
+
+paths:
+  working_dir: ./
+  test_inputs: ~/ADACS/repo/MKrumholz_2025a/tests_input
+
+scaling:
+ strategy: weak_3d
+ max_cores: 64
+
+tests:
+  - name: test_hydro3d_blast
+    target: HydroBlast3D/test_hydro3d_blast
+    input_file: blast_32.in
+    cmake_cache:
+      - -DCMAKE_BUILD_TYPE=Release 
+      - -DQUOKKA_PYTHON=OFF 
+      - -DAMReX_SPACEDIM=3
+    time_limit: 00:10:00
+    memory: 4G
+    
+
+ 

@@ -1,46 +1,15 @@
 import os
-import stat
+
 from pathlib import Path
-from typing import Union
 import subprocess
 import re
-import yaml
-from jinja2 import Template
-import pandas as pd
-# import numpy as np
-
 from datetime import datetime
+from jinja2 import Template
 
-# Util: resolve the path
-def resolve_path(path: str):
-    # resolve environment variable and ~
-    expanded = os.path.expanduser(os.path.expandvars(path))
-    return Path(expanded).resolve()
+from strategy import ScalingStrategy
+from output import Job_FIELD, JobDataFrame
 
-# Util: change to executables
-def make_executable(file:str) -> None:
-    os.chmod(file, os.stat(file).st_mode | stat.S_IXUSR)
-
-# Load config
-def load_config(file="config.yaml"):
-    with open(file) as f:
-        config = yaml.safe_load(f)
-
-    # resolve paths
-    for key, path_value in config["paths"].items():
-        config["paths"][key] = resolve_path(path_value)
-
-    # validation
-    # check wether env script exists
-    env_script = resolve_path(config["env"]["script"])
-
-    if not env_script.exists():
-        raise FileNotFoundError(f"Environment script {env_script} is not found.")
-
-    return config
-
-
-class JobController:
+class JobCreator:
     # templates to use
     BUILD_TEMPLATE = "templates/build_all.sh.j2"
     JOB_TEMPLATE = "templates/job_slurm.sh.j2"
@@ -71,7 +40,7 @@ class JobController:
         self.timestamp = datetime.today().strftime("%Y%m%d%H%M%S")
 
     def _set_paths(self):
-        self.working_dir = config["paths"]["working_dir"]/"performance_test"
+        self.working_dir = self.config["paths"]["working_dir"]/"performance_test"
         self.test_instance = self.working_dir/self.timestamp
         self.repo_dir = self.test_instance/"quokka"
         self.result_dir_base = self.test_instance/"results"
@@ -132,11 +101,11 @@ class JobController:
             build_temp = Template(f.read())
 
         re_build = build_temp.render(
-        shell = config["shell"],
+        shell = self.config["shell"],
         working_dir = str(self.working_dir),
         test_instance = str(self.test_instance),
-        env_setup_script = config["env"]["script"],
-        tests = config["tests"],
+        env_setup_script = self.config["env"]["script"],
+        tests = self.config["tests"],
         gpu_build_flag = self.gpu_dflag
         )
         with open("build_all.sh", "w") as f:
@@ -145,7 +114,7 @@ class JobController:
 
         # Run the build script
         try:
-            subprocess.run([config["shell"], "build_all.sh"], capture_output=True, text=True, check=True)
+            subprocess.run([self.config["shell"], "build_all.sh"], capture_output=True, text=True, check=True)
         except subprocess.CalledProcessError as e:
             print("Build failed! \n")
             print("stderr: {}".format(e.stderr))
@@ -175,8 +144,8 @@ class JobController:
         use_partition = self.config["partition"] is not None
 
         rendered = job_template.render(
-                    shell=config["shell"],
-                    env_setup_script = config["env"]["script"],
+                    shell=self.config["shell"],
+                    env_setup_script = self.config["env"]["script"],
                     test_name = test_item["name"],
                     target=str(self.repo_dir/"build/src/problems"/test_item["target"]),
                     input_file=input_file,
@@ -203,9 +172,8 @@ class JobController:
         scaling_func, max_cores = self._get_scaling_strategy()
 
         # Initiate dataframe
-        output = JobResult()
-        
-        for test in config["tests"]:
+        output = JobDataFrame(Job_FIELD)
+        for test in self.config["tests"]:
             input_file = str(self.config["paths"]["test_inputs"]/test["input_file"])
             # get init n_cell
             init_ncell = self._read_ncell(input_file)
@@ -228,65 +196,12 @@ class JobController:
         
         # save dataframe 
         output.save(self.result_dir_base/"job_submission.parquet")
-class ScalingStrategy:
 
-    @classmethod
-    def _convert_to_amr_param(cls, box: list) -> str:
-        value = " ".join(str(x) for x in box)
-        return (f'({value})', f'amr.n_cell={value}')
-    
-    @classmethod
-    def weak_3d_scaling(cls, init_box:list, max_cores: int):
-        dim = len(init_box) #todo: raise error when it's zero 
-        core_dict = {}
-        cores = 1
-        box = init_box[:]
-        while cores <= max_cores:
-            core_dict[cores] = cls._convert_to_amr_param(box)
-            box = [x * 2 for x in box]            
-            cores *= 2**dim
-        return core_dict
 
-class JobResult:
-    Job_field = {
-            "test_name": str,
-            "job_id": int,
-            "n_cell": str,
-            "n_cores": int,
-            "cores_per_node": int,
-            "n_nodes": int,
-        }
-    
-    Result_field = {
-        "exit_status": str,
-        "microseconds_per_update": float,
-        "megaupdates_per_second": float,
-        "microseconds_per_update_per_core": float,
-        "megaupdates_per_second_per_core": float,
-
-    }
-
-    Columns = Job_field | Result_field
-    def __init__(self):
-        self.df = pd.DataFrame(columns=self.Columns.keys())
-        
-    def add_job_entry(self, job_id, **kwargs):
-        row = {"job_id": job_id}
-        for key in self.Job_field.keys():
-            if key != "job_id":
-                row[key] = kwargs.get(key, None)
-        self.df.loc[len(self.df)] = row
-
-    def save(self, filename:Union[str,os.PathLike]):
-        self.df.to_parquet(filename, index=False)
-    
-    def load(self, filename:str):
-        return pd.read_parquet(filename)
-
-if __name__ == "__main__":
-    config = load_config()
-    jobs = JobController(config)
+# if __name__ == "__main__":
+    # config = load_config()
+    # jobs = JobController(config)
     # jobs.generate_build_file()
-    jobs.generate_job_scripts()
+    # jobs.generate_job_scripts()
 
    

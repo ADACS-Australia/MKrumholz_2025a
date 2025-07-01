@@ -6,8 +6,10 @@ authors = [ "JHU" ]
 license = "MIT-expat"
 readme = "README.md"
 packages = [
-    { include = "hpc_performance_testing", from = "python" }
+    { include = "hpc_performance_testing", from = "python" },
+    { include = "cli"},
 ]
+
 homepage = "https://github.com/ADACS-Australia/MKrumholz_2025a"
 documentation = "https://hpc_performance_testing.readthedocs.io/en/latest/"
 
@@ -17,6 +19,7 @@ rich = "^13"
 cookiecutter = "^2"
 jinja2 = "3.1.*"
 pandas = "^2.2.2"
+fastparquet = "^2024.11.0"
 
 [tool.poetry.group.docs.dependencies]
 Sphinx = "^6"
