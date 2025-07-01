@@ -19,5 +19,10 @@ def load_config(file="config.yaml"):
 
     if not env_script.exists():
         raise FileNotFoundError(f"Environment script {env_script} is not found.")
+    
+    # check whether test_inputs directory exists
+    test_inputs_dir = config["paths"]["test_inputs"]
+    if not test_inputs_dir.exists():
+        raise FileNotFoundError(f"Test inputs directory {test_inputs_dir} is not found.")
 
     return config
