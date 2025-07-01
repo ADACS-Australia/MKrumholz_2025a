@@ -9,6 +9,10 @@ packages = [
     { include = "hpc_performance_testing", from = "python" },
 ]
 
+include = [
+    "python/hpc_performance_testing/templates/**/*",
+]
+
 homepage = "https://github.com/ADACS-Australia/MKrumholz_2025a"
 documentation = "https://hpc_performance_testing.readthedocs.io/en/latest/"
 
