@@ -1,11 +1,6 @@
 #!{{ shell }}
 
-# Create a working directory
-mkdir -p {{ working_dir }}
-cd {{ working_dir }}
-
-# Create a test directory
-mkdir -p {{ test_instance }}
+# access to the test instance directory
 cd {{ test_instance }}
 
 # Load necessary modules and activate the Python virtual environment

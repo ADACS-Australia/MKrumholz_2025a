@@ -1,4 +1,5 @@
 import os
+import sys
 
 from pathlib import Path
 import subprocess
@@ -7,6 +8,7 @@ from datetime import datetime
 from jinja2 import Template
 
 from hpc_performance_testing.util import load_template
+from hpc_performance_testing.logger import LoggerManager
 from hpc_performance_testing.strategy import ScalingStrategy
 from hpc_performance_testing.output import Job_FIELD, JobDataFrame
 
@@ -17,10 +19,10 @@ class JobCreator:
 
     def __init__(self, config:dict):
         self.config = config
+        self._init_setup()
         self._add_gpu_build_dflag()
         self.core_per_node = config["core_per_node"]
-        self._set_timestamp()
-        self._set_paths()
+        
 
     def _add_gpu_build_dflag(self):
         self.gpu_dflag = ""
@@ -38,14 +40,44 @@ class JobCreator:
         return nnodes
     
     def _set_timestamp(self):
-        self.timestamp = datetime.today().strftime("%Y%m%d%H%M%S")
+        return datetime.today().strftime("%Y%m%d%H%M%S")
+    
+    def _make_dir(self, dir_path: Path, parents=True, exist_ok=True):
+        try:
+            dir_path.mkdir(parents=parents, exist_ok=exist_ok)
+        except Exception as e:
+            if hasattr(self, "logger"):
+                self.logger.error(f"Failed to create directory {dir_path}: {e}")
+            else:
+                # fallback if logger isn't initialized
+                sys.stderr.write(f"ERROR: Failed to create directory {dir_path}: {e}\n")
+            sys.exit(1)
+        return dir_path
 
-    def _set_paths(self):
-        self.working_dir = self.config["paths"]["working_dir"]/"performance_test"
-        self.test_instance = self.working_dir/self.timestamp
+    def _set_dirs(self):
+        # get timestamp
+        timestamp = self._set_timestamp()
+
+        # layout dirs
+        working_dir = self.config["paths"]["working_dir"]/"performance_test"
+        self.test_instance = self._make_dir(working_dir/timestamp, parents=True, exist_ok=False) 
+        self.result_dir_base = self._make_dir(self.test_instance/"results", parents=True, exist_ok=False)
         self.repo_dir = self.test_instance/"quokka"
-        self.result_dir_base = self.test_instance/"results"
 
+    def _init_logger(self):
+        if not hasattr(self, "test_instance"):
+            raise RuntimeError("Cannot initialize logger: test_instance not set. Call set_dirs() first.")
+        
+        LoggerManager.init(log_dir=self.test_instance)
+        self.logger = LoggerManager.get_logger()
+
+    def _init_setup(self):
+        self._set_dirs()
+        self._init_logger()
+
+        self.logger.info(f"Initialize test instance: {self.test_instance}")
+
+    
     def get_job_id(self, submit_stdout):
         match = re.search(r"Submitted batch job (\d+)", submit_stdout)
         if match:
@@ -103,23 +135,21 @@ class JobCreator:
 
         re_build = build_temp.render(
         shell = self.config["shell"],
-        working_dir = str(self.working_dir),
         test_instance = str(self.test_instance),
         env_setup_script = self.config["env"]["script"],
         tests = self.config["tests"],
         gpu_build_flag = self.gpu_dflag
         )
-        with open("build_all.sh", "w") as f:
+        with open(self.test_instance/"build_all.sh", "w") as f:
             f.write(re_build)
         print("✅ Build script generated: build_all.sh")
-
         # Run the build script
         try:
             subprocess.run([self.config["shell"], "build_all.sh"], capture_output=True, text=True, check=True)
         except subprocess.CalledProcessError as e:
             print("Build failed! \n")
             print("stderr: {}".format(e.stderr))
-            exit(1)
+            sys.exit(1)
         print("Finish building the tests.")
 
     def _generate_job_script(self, job_template:Template, test_item:dict, 
@@ -192,8 +222,8 @@ class JobCreator:
                 with open(job_name, "w") as f:
                     f.write(rendered)
                 print(f"✅ Job script generated: {job_name}")
-                job_id = self.submit_job(job_name)
-                output.add_job_entry(job_id=job_id, **params)
+                # job_id = self.submit_job(job_name)
+                output.add_job_entry(job_id=1, **params)
         
         # save dataframe 
         output.save(self.result_dir_base/"job_submission.parquet")
