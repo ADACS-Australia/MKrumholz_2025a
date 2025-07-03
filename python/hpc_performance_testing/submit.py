@@ -134,12 +134,13 @@ class JobCreator:
         tests = self.config["tests"],
         gpu_build_flag = self.gpu_dflag
         )
-        with open(self.test_instance/"build_all.sh", "w") as f:
+        build_file = self.test_instance/"build_all.sh"
+        with open(build_file, "w") as f:
             f.write(re_build)
         print("✅ Build script generated: build_all.sh")
         # Run the build script
         try:
-            subprocess.run([self.config["shell"], "build_all.sh"], capture_output=True, text=True, check=True)
+            subprocess.run([self.config["shell"], build_file], capture_output=True, text=True, check=True)
         except subprocess.CalledProcessError as e:
             msg = (
                 f"Build failed! "
