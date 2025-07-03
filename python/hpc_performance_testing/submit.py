@@ -12,6 +12,9 @@ from hpc_performance_testing.logger import LoggerManager
 from hpc_performance_testing.strategy import ScalingStrategy
 from hpc_performance_testing.output import Job_FIELD, JobDataFrame
 
+# get logger
+logger = LoggerManager.get_logger()
+
 class JobCreator:
     # templates to use
     BUILD_TEMPLATE = load_template("build_all.sh.j2")
@@ -19,7 +22,7 @@ class JobCreator:
 
     def __init__(self, config:dict):
         self.config = config
-        self._init_setup()
+        self._set_dirs()
         self._add_gpu_build_dflag()
         self.core_per_node = config["core_per_node"]
         
@@ -46,11 +49,9 @@ class JobCreator:
         try:
             dir_path.mkdir(parents=parents, exist_ok=exist_ok)
         except Exception as e:
-            if hasattr(self, "logger"):
-                self.logger.error(f"Failed to create directory {dir_path}: {e}")
-            else:
-                # fallback if logger isn't initialized
-                sys.stderr.write(f"ERROR: Failed to create directory {dir_path}: {e}\n")
+            
+            logger.error(f"Failed to create directory {dir_path}: {e}")
+            sys.stderr.write(f"ERROR: Failed to create directory {dir_path}: {e}\n") 
             sys.exit(1)
         return dir_path
 
@@ -60,23 +61,19 @@ class JobCreator:
 
         # layout dirs
         working_dir = self.config["paths"]["working_dir"]/"performance_test"
-        self.test_instance = self._make_dir(working_dir/timestamp, parents=True, exist_ok=False) 
+        self.test_instance = self._make_dir(working_dir/timestamp, parents=True, exist_ok=False)
+        logger.info(f"Initialize test instance: {self.test_instance}")
         self.result_dir_base = self._make_dir(self.test_instance/"results", parents=True, exist_ok=False)
+        logger.info(f"Create results directory: {self.result_dir_base}")
         self.repo_dir = self.test_instance/"quokka"
 
-    def _init_logger(self):
-        if not hasattr(self, "test_instance"):
-            raise RuntimeError("Cannot initialize logger: test_instance not set. Call set_dirs() first.")
         
-        LoggerManager.init(log_dir=self.test_instance)
-        self.logger = LoggerManager.get_logger()
-
-    def _init_setup(self):
-        self._set_dirs()
-        self._init_logger()
-
-        self.logger.info(f"Initialize test instance: {self.test_instance}")
-
+    # def _init_logger(self):
+    #     if not hasattr(self, "test_instance"):
+    #         raise RuntimeError("Cannot initialize logger: test_instance not set. Call set_dirs() first.")
+        
+    #     LoggerManager.init(log_dir=self.test_instance)
+    #     self.logger = LoggerManager.get_logger()
     
     def get_job_id(self, submit_stdout):
         match = re.search(r"Submitted batch job (\d+)", submit_stdout)
@@ -88,7 +85,9 @@ class JobCreator:
     
     def _validate_path(self, path: Path) -> Path:
         if not path.exists():
-            raise FileNotFoundError(f"{path} doesn't exist.")  
+            msg = f"{path} doesn't exist."
+            logger.error(msg)
+            raise FileNotFoundError(msg)  
         return path
 
     def _read_ncell(self, input_file) -> list:

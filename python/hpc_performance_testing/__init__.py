@@ -1,3 +1,9 @@
+from hpc_performance_testing.logger import LoggerManager
+from pathlib import Path
+
+# start logger
+logger = LoggerManager.init(log_dir=Path.cwd())
+
 from importlib import metadata  # make sure to import metadata explicitly
 
 __version__ = metadata.version(__package__ or __name__)

@@ -1,5 +1,7 @@
 import logging
 from pathlib import Path
+import sys
+import traceback
 
 class LoggerManager:
     _logger = None
@@ -10,12 +12,34 @@ class LoggerManager:
         cls._log_file = log_dir/"run.log"
         logger = logging.getLogger(name)
         logger.setLevel(logging.INFO)
-        fh = logging.FileHandler(cls._log_file, mode='a')
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        fh.setFormatter(formatter)
-        logger.addHandler(fh)
+        if not logger.hasHandlers():
+            fh = logging.FileHandler(cls._log_file, mode='a')
+            formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+            fh.setFormatter(formatter)
+            logger.addHandler(fh)
 
         cls._logger = logger
+
+        # activate the global exception hook
+        cls._setup_global_exception_hook()
+        
+        return logger
+
+    @classmethod
+    def _setup_global_exception_hook(cls):
+        def handle_exception(exc_type, exc_value, exc_traceback):
+            if issubclass(exc_type, KeyboardInterrupt):
+                # Let Ctrl+C behave normally
+                sys.__excepthook__(exc_type, exc_value, exc_traceback)
+                return
+
+            if cls._logger:
+                cls._logger.critical("Uncaught exception: ", exc_info=(exc_type, exc_value, exc_traceback))
+            else:
+                # Fallback: print to stderr if logger isn't ready
+                traceback.print_exception(exc_type, exc_value, exc_traceback)
+
+        sys.excepthook = handle_exception
 
     @classmethod
     def get_logger(cls):
