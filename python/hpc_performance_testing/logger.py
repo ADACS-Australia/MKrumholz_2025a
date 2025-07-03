@@ -12,11 +12,19 @@ class LoggerManager:
         cls._log_file = log_dir/"run.log"
         logger = logging.getLogger(name)
         logger.setLevel(logging.INFO)
+        
         if not logger.hasHandlers():
             fh = logging.FileHandler(cls._log_file, mode='a')
             formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
             fh.setFormatter(formatter)
             logger.addHandler(fh)
+
+            # Console (stdout) handler
+            ch = logging.StreamHandler(sys.stdout)  # or sys.stderr if you prefer
+            ch.setLevel(logging.INFO)
+            console_formatter = logging.Formatter('%(levelname)s - %(message)s')  # simpler output
+            ch.setFormatter(console_formatter)
+            logger.addHandler(ch)
 
         cls._logger = logger
 
@@ -33,12 +41,15 @@ class LoggerManager:
                 sys.__excepthook__(exc_type, exc_value, exc_traceback)
                 return
 
+            
+
+            # log to logger file if exists
             if cls._logger:
-                cls._logger.critical("Uncaught exception: ", exc_info=(exc_type, exc_value, exc_traceback))
+                cls._logger.critical("Uncaught Exception: ", exc_info=(exc_type, exc_value, exc_traceback))
             else:
                 # Fallback: print to stderr if logger isn't ready
                 traceback.print_exception(exc_type, exc_value, exc_traceback)
-
+                
         sys.excepthook = handle_exception
 
     @classmethod

@@ -25,7 +25,6 @@ class JobCreator:
         self._set_dirs()
         self._add_gpu_build_dflag()
         self.core_per_node = config["core_per_node"]
-        
 
     def _add_gpu_build_dflag(self):
         self.gpu_dflag = ""
@@ -51,7 +50,6 @@ class JobCreator:
         except Exception as e:
             
             logger.error(f"Failed to create directory {dir_path}: {e}")
-            sys.stderr.write(f"ERROR: Failed to create directory {dir_path}: {e}\n") 
             sys.exit(1)
         return dir_path
 
@@ -66,15 +64,7 @@ class JobCreator:
         self.result_dir_base = self._make_dir(self.test_instance/"results", parents=True, exist_ok=False)
         logger.info(f"Create results directory: {self.result_dir_base}")
         self.repo_dir = self.test_instance/"quokka"
-
         
-    # def _init_logger(self):
-    #     if not hasattr(self, "test_instance"):
-    #         raise RuntimeError("Cannot initialize logger: test_instance not set. Call set_dirs() first.")
-        
-    #     LoggerManager.init(log_dir=self.test_instance)
-    #     self.logger = LoggerManager.get_logger()
-    
     def get_job_id(self, submit_stdout):
         match = re.search(r"Submitted batch job (\d+)", submit_stdout)
         if match:
@@ -120,11 +110,16 @@ class JobCreator:
         try:
             submit = subprocess.run(["sbatch", jobfile], capture_output=True, text=True, check=True)
             job_id = self.get_job_id(submit.stdout)
-            print("Submit job: {} \n".format(job_id))
+            logger.info(f"Submit job: {job_id}")
         except subprocess.CalledProcessError as e:
-            print("Job submission failed! \n")
-            print("stderr: {}".format(e.stderr))
-            exit(1)
+            msg = (
+            f"Job submission failed!\n"
+            f"Command: {' '.join(e.cmd)}\n"
+            f"Return code: {e.returncode}\n"
+            f"stderr:\n{e.stderr.strip()}"
+            )
+            logger.error(msg)
+            sys.exit(1)
         return job_id
 
 
@@ -146,10 +141,13 @@ class JobCreator:
         try:
             subprocess.run([self.config["shell"], "build_all.sh"], capture_output=True, text=True, check=True)
         except subprocess.CalledProcessError as e:
-            print("Build failed! \n")
-            print("stderr: {}".format(e.stderr))
+            msg = (
+                f"Build failed! "
+                f"{e.stderr}"
+            )
+            logger.error(msg)
             sys.exit(1)
-        print("Finish building the tests.")
+        logger.info("Finish building the tests.")
 
     def _generate_job_script(self, job_template:Template, test_item:dict, 
                              input_file:str, result_dir:str, core:int, 
