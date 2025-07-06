@@ -1,10 +1,8 @@
 import yaml
 from pathlib import Path
-from datetime import datetime
-import shutil
 from copy import deepcopy
 
-from hpc_performance_testing.utils import resolve_path, validate_path
+from hpc_performance_testing.utils import resolve_path, validate_path, backup_existing_file
 
 #todo: add function to check config fields
 
@@ -26,7 +24,7 @@ def load_config(file="config.yaml"):
     # resolve paths
     for key, path_value in config["paths"].items():
         config["paths"][key] = resolve_path(path_value)
-        
+
     # validation
     # check wether env script exists
     env_script = resolve_path(config["env"]["script"])
@@ -55,20 +53,19 @@ def write_test_instance_meta(config: dict, test_instance: Path | str, out_dir: P
 
     # Backup old file if exists
     if metadata_path.exists():
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        backup_path = metadata_path.with_name(f"test_instance.yaml.old.{timestamp}")
-        shutil.move(str(metadata_path), str(backup_path))
+        backup_existing_file(metadata_path)
 
     # Merge with runtime metadata
     config_cpy["runtime"] = {
+        "timestamp": test_instance.name ,
         "test_instance": str(test_instance),
-        "timestamp": test_instance.name  # assuming folder name is timestamp
+         
     }
 
     # Convert Path objects to str
     clean_config = convert_paths_to_str(config_cpy)
     # Write new metadata
     with metadata_path.open("w") as f:
-        yaml.dump(clean_config, f, default_flow_style=False)
+        yaml.safe_dump(clean_config, f, default_flow_style=False, sort_keys=False)
 
     print(f"[INFO] run_metadata.yaml written to {metadata_path}")

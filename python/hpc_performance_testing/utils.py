@@ -1,7 +1,9 @@
 import os
 from pathlib import Path
 import stat
+import uuid
 from importlib.resources import files
+import shutil
 
 def resolve_path(path: str):
     # resolve environment variable and ~
@@ -24,3 +26,11 @@ def validate_path(path: Path | str) -> Path:
         raise FileNotFoundError(msg)  
     return path
 
+def backup_existing_file(file_path : Path | str) -> Path:
+    file_path = validate_path(file_path)
+    filename = file_path.name
+    unique_id = uuid.uuid4().hex[:8]
+    backup_file = file_path.with_name(f"{filename}.old.{unique_id}")
+
+    shutil.move(str(file_path), str(backup_file))
+    return backup_file
