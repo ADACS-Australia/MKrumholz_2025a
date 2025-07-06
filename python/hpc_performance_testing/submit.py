@@ -7,7 +7,8 @@ import re
 from datetime import datetime
 from jinja2 import Template
 
-from hpc_performance_testing.util import load_template
+from hpc_performance_testing.utils import load_template
+from hpc_performance_testing.config import write_test_instance_meta
 from hpc_performance_testing.logger import LoggerManager
 from hpc_performance_testing.strategy import ScalingStrategy
 from hpc_performance_testing.output import Job_FIELD, JobDataFrame
@@ -64,6 +65,8 @@ class JobCreator:
         self.result_dir_base = self._make_dir(self.test_instance/"results", parents=True, exist_ok=False)
         logger.info(f"Create results directory: {self.result_dir_base}")
         self.repo_dir = self.test_instance/"quokka"
+
+        write_test_instance_meta(self.config, self.test_instance)
         
     def get_job_id(self, submit_stdout):
         match = re.search(r"Submitted batch job (\d+)", submit_stdout)

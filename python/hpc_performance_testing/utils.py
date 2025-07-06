@@ -15,3 +15,12 @@ def make_executable(file:str) -> None:
 
 def load_template(template_name):
     return (files('hpc_performance_testing') / 'templates' / template_name)
+
+def validate_path(path: Path | str) -> Path:
+    path = Path(path)
+    if not path.exists():
+        msg = f"{path} doesn't exist."
+        # logger.error(msg)
+        raise FileNotFoundError(msg)  
+    return path
+
