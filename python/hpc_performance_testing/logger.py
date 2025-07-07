@@ -3,6 +3,7 @@ import warnings
 from pathlib import Path
 import sys
 import traceback
+import subprocess
 import uuid
 
 class LoggerManager:
@@ -96,3 +97,29 @@ class LoggerManager:
     @classmethod
     def get_log_file(cls):
         return cls._log_file
+
+
+def run_and_log_subprocess(command, logger, batch_size=1):
+    with subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    ) as process:
+        
+        buffer = []
+        for line in process.stdout:
+            buffer.append(line.rstrip())
+            if len(buffer) >= batch_size:
+                logger.info("\n".join(buffer))
+                buffer.clear()
+
+        # Log remaining lines if any
+        if buffer:
+            logger.info("\n".join(buffer))
+
+    # Check return code after process has finished
+    if process.returncode != 0:
+        logger.error(f"Command failed with return code {process.returncode}")
+        raise subprocess.CalledProcessError(process.returncode, command)

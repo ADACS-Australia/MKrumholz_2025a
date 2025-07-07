@@ -9,7 +9,7 @@ from jinja2 import Template
 
 from hpc_performance_testing.utils import load_template
 from hpc_performance_testing.config import write_test_instance_meta
-from hpc_performance_testing.logger import LoggerManager
+from hpc_performance_testing.logger import LoggerManager, run_and_log_subprocess
 from hpc_performance_testing.strategy import ScalingStrategy
 from hpc_performance_testing.output import Job_FIELD, JobDataFrame
 
@@ -149,17 +149,9 @@ class JobCreator:
         build_file = self.test_instance/"build_all.sh"
         with open(build_file, "w") as f:
             f.write(re_build)
-        print("✅ Build script generated: build_all.sh")
+        logger.info("✅ Build script generated: build_all.sh")
         # Run the build script
-        try:
-            subprocess.run([self.config["shell"], build_file], capture_output=True, text=True, check=True)
-        except subprocess.CalledProcessError as e:
-            msg = (
-                f"Build failed! "
-                f"{e.stderr}"
-            )
-            logger.error(msg)
-            sys.exit(1)
+        run_and_log_subprocess([self.config["shell"], build_file], logger=logger, batch_size=1)
         logger.info("Finish building the tests.")
 
     def _generate_job_script(self, job_template:Template, test_item:dict, 
@@ -231,7 +223,7 @@ class JobCreator:
                 job_name = result_dir + f"/{test['name']}_n{core}.sh"
                 with open(job_name, "w") as f:
                     f.write(rendered)
-                print(f"✅ Job script generated: {job_name}")
+                logger.info(f"✅ Job script generated: {job_name}")
                 # job_id = self.submit_job(job_name)
                 output.add_job_entry(job_id=1, **params)
         
