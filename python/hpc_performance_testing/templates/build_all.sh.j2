@@ -1,5 +1,8 @@
 #!{{ shell }}
 
+# exit on error
+set -eo pipefail
+
 # access to the test instance directory
 cd {{ test_instance }}
 
