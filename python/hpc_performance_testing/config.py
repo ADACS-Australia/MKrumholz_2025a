@@ -24,11 +24,11 @@ def load_config(file="config.yaml"):
     # resolve paths
     for key, path_value in config["paths"].items():
         config["paths"][key] = resolve_path(path_value)
-
+   
     # validation
     # check wether env script exists
     env_script = resolve_path(config["env"]["script"])
-
+    config["env"]["script"] = env_script
     if not env_script.exists():
         raise FileNotFoundError(f"Environment script {env_script} is not found.")
     
