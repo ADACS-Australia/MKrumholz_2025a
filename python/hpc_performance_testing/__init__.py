@@ -1,5 +1,4 @@
 from hpc_performance_testing.logger import LoggerManager
-from pathlib import Path
 
 # start logger
 logger = LoggerManager.init()

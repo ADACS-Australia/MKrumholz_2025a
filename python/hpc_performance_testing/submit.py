@@ -15,7 +15,6 @@ from hpc_performance_testing.output import Job_FIELD, JobDataFrame
 
 # get logger
 logger = LoggerManager.get_logger()
-
 class JobCreator:
     # templates to use
     BUILD_TEMPLATE = load_template("build_all.sh.j2")
@@ -23,7 +22,7 @@ class JobCreator:
 
     def __init__(self, config:dict):
         self.config = config
-        self._set_dirs()
+        self._prepare()
         self._add_gpu_build_dflag()
         self.core_per_node = config["core_per_node"]
 
@@ -66,7 +65,17 @@ class JobCreator:
         logger.info(f"Create results directory: {self.result_dir_base}")
         self.repo_dir = self.test_instance/"quokka"
 
+        
+
+    def _prepare(self):
+        # create and record dirs
+        self._set_dirs()
+
+        # write test instance meta yaml file
         write_test_instance_meta(self.config, self.test_instance)
+
+        # add pipeline log handler
+        LoggerManager.add_pipeline_log(self.test_instance)
         
     def get_job_id(self, submit_stdout):
         match = re.search(r"Submitted batch job (\d+)", submit_stdout)

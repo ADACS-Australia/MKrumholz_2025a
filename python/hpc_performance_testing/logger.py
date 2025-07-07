@@ -7,37 +7,33 @@ import uuid
 
 class LoggerManager:
     _logger = None
-    _log_file = None
+    _log_err_file = None
+    _log_pipeline_file = None
 
     @classmethod
-    def init(cls, log_dir: Path | str = None, name: str = "perf_test", existing_log: bool = False):
+    def init(cls, log_dir: Path | str = None, name: str = "perf_test"):
+        # get logger
+        logger = logging.getLogger(name)
+        logger.setLevel(logging.DEBUG) # handlers decide the level 
+        logger.handlers.clear()
+
+        # err log
         if log_dir is None:
-            log_dir = Path.cwd()
-        elif not isinstance(log_dir, Path):
-            log_dir = Path(str(log_dir))
+            log_dir = Path.cwd()    
+        log_dir = Path(str(log_dir))
+        
         if not log_dir.exists():
             msg = f"Directory {log_dir} doesn't exist! Log in to the current directory instead."
             warnings.warn(msg)
             log_dir = Path.cwd()
         
-        if existing_log:
-            _log_file = log_dir/"run.log"
-            if not _log_file.exists():
-                _log_file = log_dir/cls._add_uuid_name()
-                msg = f"Log file run.log doesn't exist in {log_dir}! Create {_log_file.name}."
-                warnings.warn(msg)
-        else:
-            _log_file = log_dir/cls._add_uuid_name()
-        cls._log_file = _log_file
-        logger = logging.getLogger(name)
-        logger.setLevel(logging.INFO)
-
-        # Clear any existing handlers to avoid duplicates
-        logger.handlers.clear()
-        fh = logging.FileHandler(cls._log_file, mode='a')
+        cls._log_err_file = log_dir/"runtime_err.log"
+               
+        err_fh = logging.FileHandler(cls._log_err_file, mode='a')
+        err_fh.setLevel(logging.ERROR)
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        fh.setFormatter(formatter)
-        logger.addHandler(fh)
+        err_fh.setFormatter(formatter)
+        logger.addHandler(err_fh)
 
         # Console (stdout) handler
         ch = logging.StreamHandler(sys.stdout)  # or sys.stderr if you prefer
@@ -74,6 +70,22 @@ class LoggerManager:
                 traceback.print_exception(exc_type, exc_value, exc_traceback)
                 
         sys.excepthook = handle_exception
+
+    @classmethod
+    def add_pipeline_log(cls, test_instance: Path):
+        if not Path(test_instance).exists():
+            raise FileNotFoundError(f"Test instance {test_instance} doesn't exists!")
+        pipline_log = test_instance/"perf_test.log"
+        pipeline_fh = logging.FileHandler(pipline_log, mode='a')
+        pipeline_fh.setLevel(logging.INFO)
+        pipeline_fh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        
+        if cls._logger is None:
+            raise  RuntimeError("LoggerManager not initialized. Call LoggerManager.init(log_dir) first.")
+        
+        cls._logger.addHandler(pipeline_fh)
+        cls._log_pipeline_file = pipline_log
+
 
     @classmethod
     def get_logger(cls):
