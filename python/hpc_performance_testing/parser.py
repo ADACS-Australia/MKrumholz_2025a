@@ -1,14 +1,21 @@
 from pathlib import Path
 import re
+from io import StringIO
+import pandas as pd
 
 from hpc_performance_testing.utils import validate_path
 from hpc_performance_testing.patterns import *
 
-class ProfileParser:
+class JobOutputParser:
+    # available table headers
+    profile_table = {
+        "timing_inclusive": TIMING_INCLUSIVE,
+        "timing_exclusive": TIMING_EXCLUSIVE
+    }
     
-    def __init__(self, profile_file: Path | str ):
-        profile_file = validate_path(profile_file)
-        self._read_file(profile_file)
+    def __init__(self, job_output_file: Path | str ):
+        job_output_file = validate_path(job_output_file)
+        self._read_file(job_output_file)
         
     def _read_file(self, filename):
         with open(filename) as f:
@@ -24,13 +31,27 @@ class ProfileParser:
         match = re.search(pattern, text, flags=re.DOTALL)
     
         if match:
-            header_line = match.group(1).strip()
+            columns = match.group(1).strip()
             data_block = match.group(2).strip()
+            # Combine header and data for read_fwf
+            table_text = columns + "\n" + data_block
+            df = pd.read_fwf(StringIO(table_text))
+            return df
         else:
             print("Table block not found with full table structure.")
             return ""
-
     
+    def _read_tinyprofiler_function_stats(self, text: str, table_name: str, function_name: str, column_name : str | list | None = None):
+        if not table_name in self.profile_table.keys():
+            print(f"The table {table_name} does not exist!")
+            return None
+        columns_regex = self.profile_table[table_name]
+        df = self._extract_table(text, columns_regex)
+        if column_name is None:
+            return df[df["Name"] == function_name]
+        else:    
+            return df[df["Name"] == function_name][column_name]
+
     def get_zone_update_info(self):
         microseconds_per_update = None
         megaupdates_per_second = None
@@ -54,12 +75,17 @@ class ProfileParser:
             elapse_time = float(match_et.group(1))
         print(f"elapse time: {elapse_time}")
         return elapse_time
-
+    
+    def get_boundary_condition_stats(self):
+        df = self._read_tinyprofiler_function_stats(self.non_region_content, "timing_inclusive", "AMRSimulation::fillBoundaryConditions()")
+        print("boundary condition stats: ", df.to_string())
+    
+        
     
 
 if __name__ == "__main__":
-    parser = ProfileParser("test_hydro3d_blast_gpu_n8_v2_1902441.out")
+    parser = JobOutputParser("test_hydro3d_blast_gpu_n8_v2_1902441.out")
     parser.get_zone_update_info()
     parser.get_elapse_time()
     parser._extract_region_blocks()
-    parser._extract_table(parser.non_region_content, TIMING_INCLUSIVE)
+    parser.get_boundary_condition_stats()
