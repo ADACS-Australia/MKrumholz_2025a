@@ -15,6 +15,22 @@ class ProfileParser:
             content = f.read()
         self.content = content
 
+    def _extract_region_blocks(self):
+        self.region_blocks = re.findall(r'BEGIN REGION.*?END REGION', self.content, flags=re.DOTALL)
+        self.non_region_content = re.sub(r'BEGIN REGION.*?END REGION', '', self.content, flags=re.DOTALL)
+
+    def _extract_table(self, text: str, columns_regex: str):
+        pattern = rf"-+\n({columns_regex})\n-+\n(.*?)(?=\n-+)"
+        match = re.search(pattern, text, flags=re.DOTALL)
+    
+        if match:
+            header_line = match.group(1).strip()
+            data_block = match.group(2).strip()
+        else:
+            print("Table block not found with full table structure.")
+            return ""
+
+    
     def get_zone_update_info(self):
         microseconds_per_update = None
         megaupdates_per_second = None
@@ -39,7 +55,11 @@ class ProfileParser:
         print(f"elapse time: {elapse_time}")
         return elapse_time
 
+    
+
 if __name__ == "__main__":
     parser = ProfileParser("test_hydro3d_blast_gpu_n8_v2_1902441.out")
     parser.get_zone_update_info()
     parser.get_elapse_time()
+    parser._extract_region_blocks()
+    parser._extract_table(parser.non_region_content, TIMING_INCLUSIVE)

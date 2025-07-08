@@ -7,6 +7,10 @@ RE_N_MPI_PROCESS = re.compile(r'MPI initialized with (\d+) MPI processes')
 
 ELPASE_TIME = re.compile(r'elapsed time:\s*(.*?)\s*seconds\.')
 
+# table patterns
+TIMING_INCLUSIVE = r"Name\s+NCalls\s+Incl\. Min\s+Incl\. Avg\s+Incl\. Max\s+Max %"
+TIMING_EXCLUSIVE = r"Name\s+NCalls\s+Excl\. Min\s+Excl\. Avg\s+Excl\. Max\s+Max %"
+
 
 # HPC specific patterns
 
