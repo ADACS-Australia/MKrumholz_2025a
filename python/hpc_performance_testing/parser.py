@@ -58,18 +58,42 @@ class JobOutputParser:
         
         return df
         
-            
-    
-    def _read_tinyprofiler_function_stats(self, text: str, table_name: str, function_name: str, column_name : str | list | None = None):
-        if not table_name in self.profile_table.keys():
-            print(f"The table {table_name} does not exist!")
+    def _validate_df_dict(self, df: pd.DataFrame | pd.Series):
+        assert isinstance(df, pd.DataFrame), "Input df should be of type Pandas.DataFrame"
+        list_dict = df.to_dict(orient="records")
+        n_entry = len(list_dict)
+        assert n_entry == 1, f"There should be just one entry of the same function name in the table. Found {n_entry}."
+        return list_dict[0]
+               
+    def _read_tinyprofiler_function_stats(self, text: str, table_name: str, function_name: str, column_name : str | list | None = None) -> dict | None:
+        assert table_name in self.profile_table.keys(), f"The table {table_name} doesn't exist or its regex is not added. Available tables: {self.profile_table.keys()}"
+        table_regex = self.profile_table[table_name]
+        
+        assert table_regex is not None
+        df = self._extract_table(text, table_regex)
+
+        if df is None or df.empty:
             return None
-        columns_regex = self.profile_table[table_name]
-        df = self._extract_table(text, columns_regex)
+
+        if "Name" not in df.columns:
+            raise ValueError("The column `Name` does not exist! Check the tiny profiler output.")
+        
+        assert function_name in df["Name"].values, f"Function name '{function_name}' not found in table. Check whether it's spelled correctly."
+
+        # Filter by function name first
+        filtered_df = df[df["Name"] == function_name]
+        
         if column_name is None:
-            return df[df["Name"] == function_name]
-        else:    
-            return df[df["Name"] == function_name][column_name]
+            return self._validate_df_dict(filtered_df)
+
+        # Validate column names
+        columns_to_check = [column_name] if isinstance(column_name, str) else column_name
+        columns_to_check.append("Name") # make sure the function name is in the output
+        columns_to_check = list(set(columns_to_check))
+        missing_cols = [col for col in columns_to_check if col not in df.columns]
+        assert not missing_cols, f"Column(s) not in DataFrame: {missing_cols}"
+        
+        return self._validate_df_dict(filtered_df[columns_to_check])       
 
     def get_zone_update_info(self):
         microseconds_per_update = None
@@ -96,8 +120,8 @@ class JobOutputParser:
         return elapse_time
     
     def get_boundary_condition_stats(self):
-        df = self._read_tinyprofiler_function_stats(self.non_region_content, "timing_inclusive", "AMRSimulation::fillBoundaryConditions()")
-        print("boundary condition stats: ", df.to_string())
+        data = self._read_tinyprofiler_function_stats(self.non_region_content, "timing_inclusive", "AMRSimulation::fillBoundaryConditions()")
+        print("boundary condition stats: ", data)
     
         
     
