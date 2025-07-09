@@ -13,7 +13,7 @@ class JobOutputParser:
         "timing_exclusive": TIMING_EXCLUSIVE
     }
     
-    def __init__(self, job_output_file: Path | str ):
+    def __init__(self, job_output_file: Path | str):
         job_output_file = validate_path(job_output_file)
         self._read_file(job_output_file)
         
@@ -22,24 +22,43 @@ class JobOutputParser:
             content = f.read()
         self.content = content
 
+    def _read_job_id(self, job_output_file):
+        job_id = -1 
+
+
     def _extract_region_blocks(self):
         self.region_blocks = re.findall(r'BEGIN REGION.*?END REGION', self.content, flags=re.DOTALL)
         self.non_region_content = re.sub(r'BEGIN REGION.*?END REGION', '', self.content, flags=re.DOTALL)
 
-    def _extract_table(self, text: str, columns_regex: str):
-        pattern = rf"-+\n({columns_regex})\n-+\n(.*?)(?=\n-+)"
-        match = re.search(pattern, text, flags=re.DOTALL)
-    
-        if match:
-            columns = match.group(1).strip()
-            data_block = match.group(2).strip()
-            # Combine header and data for read_fwf
-            table_text = columns + "\n" + data_block
-            df = pd.read_fwf(StringIO(table_text))
-            return df
-        else:
+    def _parse_lines(self, text: str, pattern: re.Pattern | str):
+        if isinstance(pattern, str):
+            pattern = re.compile(pattern)
+        pass
+
+    def _extract_table(self, text: str, table_regex: re.Pattern | str):
+        if isinstance(table_regex, str):
+            table_regex = re.compile(table_regex)
+        assert table_regex.groups == 2, "The table regex should contain two groups: header and data"
+        
+        match = table_regex.search(text)
+
+        if not match:
             print("Table block not found with full table structure.")
-            return ""
+            return None
+        
+        header = match.group(1).strip()
+        data_block = match.group(2).strip()
+        
+        # Combine header and data for read_fwf
+        table_text = header + "\n" + data_block
+        try:
+            df = pd.read_fwf(StringIO(table_text))
+        except Exception as e:
+            raise IOError(f"Can't read table text to dataframe: {e}. Check whether the table has fixed length.")
+        
+        return df
+        
+            
     
     def _read_tinyprofiler_function_stats(self, text: str, table_name: str, function_name: str, column_name : str | list | None = None):
         if not table_name in self.profile_table.keys():
