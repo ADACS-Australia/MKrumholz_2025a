@@ -2,7 +2,7 @@
 #SBATCH --job-name={{ test_name }}_n{{ cores }}
 #SBATCH --ntasks-per-node={{ cores_per_node }}
 #SBATCH --nodes={{ nodes }}
-#SBATCH --output={{ result_dir }}/{{ test_name }}_n{{ cores }}_%j.out
+#SBATCH --output={{ result_dir }}/{{ test_name }}_n{{ cores }}_JobID_%j.out
 #SBATCH --time={{ time_limit }}
 #SBATCH --mem={{ memory }}
 {% if use_gpu %}
