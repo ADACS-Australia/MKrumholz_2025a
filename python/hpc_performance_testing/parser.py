@@ -120,7 +120,7 @@ class JobOutputParser:
         
         return self._validate_df_dict(filtered_df[columns_to_check])       
    
-class JobOutputReader:
+class JobOutput:
     def __init__(self, job_output_file: Path | str):
         self.parser = JobOutputParser(job_output_file)
 
@@ -187,7 +187,7 @@ class JobOutputReader:
 
 if __name__ == "__main__":
     parser = JobOutputParser("test_hydro3d_blast_gpu_n8_v2_JobID_1902441.out") 
-    reader = JobOutputReader("test_hydro3d_blast_gpu_n8_v2_JobID_1902441.out")
+    reader = JobOutput("test_hydro3d_blast_gpu_n8_v2_JobID_1902441.out")
     res = reader.extract_job_output(["elapse_time", "zone_update"])
     # breakpoint()
     
