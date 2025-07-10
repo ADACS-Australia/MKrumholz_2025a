@@ -34,7 +34,7 @@ class JobResultExtractor:
 
         for f in file_list:
             data_dict = self._process_job_output_files(f, Job_output_FIELD)
-            result.add_job_entry(data_dict)
+            result.add_job_entry(**data_dict)
         
         # save the results as parquet
         result.save(self.root_path/"job_output.parquet")

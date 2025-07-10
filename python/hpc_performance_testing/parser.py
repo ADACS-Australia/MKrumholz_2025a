@@ -83,7 +83,7 @@ class JobOutputParser:
         
         return df
         
-    def _validate_df_dict(self, df: pd.DataFrame | pd.Series):
+    def _validate_df_dict(self, df: pd.DataFrame):
         assert isinstance(df, pd.DataFrame), "Input df should be of type Pandas.DataFrame"
         list_dict = df.to_dict(orient="records")
         n_entry = len(list_dict)

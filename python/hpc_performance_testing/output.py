@@ -2,8 +2,8 @@ import os
 import pandas as pd
 
 Job_FIELD = {
-            "test_name": str,
-            "job_id": str,
+             "job_id": str,
+            "test_name": str,            
             "n_cell": str,
             "n_cores": int,
             "cores_per_node": int,
@@ -20,15 +20,32 @@ Job_output_FIELD = {
 
 class JobDataFrame:
     
-    def __init__(self, fields:dict):
-        self.fields = fields
-        self.df = pd.DataFrame(columns=fields.keys())
+    def __init__(self, fields: list[str] | dict):
+        self.fields = self._validate_fields(fields)
+        self.df = pd.DataFrame(columns=fields)
+
+    def _validate_fields(self, fields):
+        if isinstance(fields, dict):
+            fields = list(fields.keys())
         
-    def add_job_entry(self, job_id:int, **kwargs):
-        row = {"job_id": job_id}
-        for key in self.fields.keys():
-            if key != "job_id":
-                row[key] = kwargs.get(key, None)
+        if not isinstance(fields, list):
+            raise TypeError(f"Field names must be of type list[str] or dict; {fields} is of type {type(fields)}")
+        
+        if not all(isinstance(name, str) for name in fields):
+            bad = [type(name).__name__ for name in fields if not isinstance(name, str)]
+            raise TypeError(f"All field names must be strings; got invalid types: {bad}")
+        
+        # job_id must be one of the field names
+        if "job_id" not in fields:
+            raise ValueError("'job_id' must be included in fields!")
+        
+        return fields
+        
+    def add_job_entry(self, **kwargs):
+        row = {}
+        for name in self.fields:
+            row[name] = kwargs.get(name, None)
+
         self.df.loc[len(self.df)] = row
 
     def save(self, filename:str|os.PathLike):
