@@ -27,7 +27,6 @@ class JobOutputParser:
         assert job_id is not None, "Can't read Job ID from output filename; check relevant jinja template and regex patterns to debug"
         self.job_id = job_id
 
-
     def _extract_region_blocks(self):
         self.region_blocks = re.findall(r'BEGIN REGION.*?END REGION', self.content, flags=re.DOTALL)
         self.non_region_content = re.sub(r'BEGIN REGION.*?END REGION', '', self.content, flags=re.DOTALL)
@@ -38,7 +37,7 @@ class JobOutputParser:
         self._extract_region_blocks()
 
 
-    def parse_lines(self, text: str, pattern: re.Pattern | str, as_dict: bool = False, keys: list[str] | None = None):
+    def parse_lines(self, text: str, pattern: re.Pattern | str, keys: list[str] | None = None):
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
         match = pattern.search(text)
@@ -47,11 +46,18 @@ class JobOutputParser:
 
         values = list(match.groups())
 
-        if as_dict:
-            if not keys:
-                raise ValueError("Must provide `keys` if as_dict=True.")
-            return dict(zip(keys, values))
-        return values
+        if len(values) == 1:
+            return values[0]
+        
+        if not keys:
+            keys = [str(i) for i in range(len(values))]
+            #todo: raise warnings
+            # warnings.warn("No keys provided — using default keys: " + str(keys), stacklevel=2)
+        
+        if len(keys) != len(values):
+            raise ValueError("The number of keys is not equal to the number of groups.")
+        return dict(zip(keys, values))
+        
 
 
     def _extract_table(self, text: str, table_regex: re.Pattern | str):
@@ -125,7 +131,6 @@ class JobOutputReader:
     @property
     def zone_update(self):
         return self.parser.parse_lines(self.parser.content, ZONE_UPDATE_RATE, 
-                                        as_dict= True, 
                                         keys=["microseconds_per_update", 
                                               "megaupdates_per_second"])
     @property
@@ -142,6 +147,6 @@ class JobOutputReader:
 
 if __name__ == "__main__":
     parser = JobOutputParser("test_hydro3d_blast_gpu_n8_v2_JobID_1902441.out") 
-    
     reader = JobOutputReader("test_hydro3d_blast_gpu_n8_v2_JobID_1902441.out")
+    
     
