@@ -3,7 +3,7 @@ import re
 from io import StringIO
 import pandas as pd
 
-from hpc_performance_testing.utils import validate_path
+from hpc_performance_testing.utils import validate_path, flatten_dict
 from hpc_performance_testing.patterns import *
 
 class JobOutputParser:
@@ -124,6 +124,17 @@ class JobOutputReader:
     def __init__(self, job_output_file: Path | str):
         self.parser = JobOutputParser(job_output_file)
 
+    def _available_properties(self) -> list[str]:
+        return [
+            name for name in dir(self.__class__)
+            if isinstance(getattr(self.__class__, name, None), property)
+            and not name.startswith("_")
+        ]
+
+    @property
+    def job_id(self):
+        return self.parser.job_id
+    
     @property
     def n_mpi_processes(self):
         return self.parser.parse_lines(self.parser.content, N_MPI_PROCESS)
@@ -143,10 +154,40 @@ class JobOutputReader:
                                                             "timing_inclusive", 
                                                             "AMRSimulation::fillBoundaryConditions()")
 
-    
+    def extract_job_output(self, field_names: str | list[str] | dict) -> dict:
+        # validate inputs
+        if isinstance(field_names, str):
+            field_names = [field_names]
+        elif isinstance(field_names, dict):
+            field_names = list(field_names.keys())
+
+        if not isinstance(field_names, list):
+            raise TypeError(f"Field names must be of type str, list[str] or dict; {field_names} is of type {type(field_names)}")
+        
+        if not all(isinstance(name, str) for name in field_names):
+            bad = [type(name).__name__ for name in field_names if not isinstance(name, str)]
+            raise TypeError(f"All field names must be strings; got invalid types: {bad}")
+        
+        extract_dict = {}
+
+        for field in field_names:
+            # validate 
+            attr = getattr(self.__class__, field, None)
+            if not isinstance(attr, property):
+                avail_props = self._available_properties() 
+                raise AttributeError(f"'{field}' is not a property of {self.__class__.__name__}. \n"
+                                     f"Available properties: {avail_props}")
+            
+            # extract data
+            extract_dict[field] = getattr(self, field)
+
+
+        return flatten_dict(extract_dict)
+
 
 if __name__ == "__main__":
     parser = JobOutputParser("test_hydro3d_blast_gpu_n8_v2_JobID_1902441.out") 
     reader = JobOutputReader("test_hydro3d_blast_gpu_n8_v2_JobID_1902441.out")
-    
+    res = reader.extract_job_output(["elapse_time", "zone_update"])
+    # breakpoint()
     

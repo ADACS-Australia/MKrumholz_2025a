@@ -34,3 +34,15 @@ def backup_existing_file(file_path : Path | str) -> Path:
 
     shutil.move(str(file_path), str(backup_file))
     return backup_file
+
+def flatten_dict(d: dict, parent_key: str = "", sep: str = "_") -> dict:
+    items = []
+    assert isinstance(d, dict), f"{d} must be a dict"
+    
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)

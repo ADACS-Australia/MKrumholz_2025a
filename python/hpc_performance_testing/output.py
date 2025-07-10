@@ -3,20 +3,19 @@ import pandas as pd
 
 Job_FIELD = {
             "test_name": str,
-            "job_id": int,
+            "job_id": str,
             "n_cell": str,
             "n_cores": int,
             "cores_per_node": int,
             "n_nodes": int,
         }
 
-Result_FIELD = {
-        "exit_status": str,
-        "microseconds_per_update": float,
-        "megaupdates_per_second": float,
-        "microseconds_per_update_per_core": float,
-        "megaupdates_per_second_per_core": float,
-
+Job_output_FIELD = {
+        "job_id": str,
+        "n_mpi_processes": int,
+        "zone_update": dict,
+        "elapse_time": float,
+        "boundary_condition_inc_main": dict
     }
 
 class JobDataFrame:
