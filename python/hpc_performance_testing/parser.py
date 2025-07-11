@@ -155,6 +155,7 @@ class JobOutput:
                                                             "AMRSimulation::fillBoundaryConditions()")
 
     def extract_job_output(self, field_names: str | list[str] | dict) -> dict:
+        
         # validate inputs
         if isinstance(field_names, str):
             field_names = [field_names]
@@ -180,14 +181,14 @@ class JobOutput:
             
             # extract data
             extract_dict[field] = getattr(self, field)
-
+        # breakpoint()
 
         return flatten_dict(extract_dict)
 
 
 if __name__ == "__main__":
     parser = JobOutputParser("test_hydro3d_blast_gpu_n8_v2_JobID_1902441.out") 
-    reader = JobOutput("test_hydro3d_blast_gpu_n8_v2_JobID_1902441.out")
+    reader = JobOutput("test_hydro3d_blast_n8_JobID_2165884.out")
     res = reader.extract_job_output(["elapse_time", "zone_update"])
     # breakpoint()
     

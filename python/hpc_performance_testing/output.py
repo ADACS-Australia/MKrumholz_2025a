@@ -20,9 +20,12 @@ Job_output_FIELD = {
 
 class JobDataFrame:
     
-    def __init__(self, fields: list[str] | dict):
-        self.fields = self._validate_fields(fields)
-        self.df = pd.DataFrame(columns=fields)
+    def __init__(self, fields: list[str] | dict| None = None):
+        if fields is None:
+            self.df = pd.DataFrame()
+        else:
+            self.fields = self._validate_fields(fields)
+            self.df = pd.DataFrame(columns=fields)
 
     def _validate_fields(self, fields):
         if isinstance(fields, dict):
@@ -42,11 +45,13 @@ class JobDataFrame:
         return fields
         
     def add_job_entry(self, **kwargs):
-        row = {}
-        for name in self.fields:
-            row[name] = kwargs.get(name, None)
-
-        self.df.loc[len(self.df)] = row
+        if hasattr(self, "fields"):
+            row = {}
+            for name in self.fields:
+                row[name] = kwargs.get(name, None)
+            self.df.loc[len(self.df)] = kwargs
+        else:
+            self.df = pd.concat([self.df, pd.DataFrame([kwargs])], ignore_index=True)
 
     def save(self, filename:str|os.PathLike):
         self.df.to_parquet(filename, index=False)

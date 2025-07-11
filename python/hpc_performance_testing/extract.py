@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 from hpc_performance_testing.utils import validate_path
 from hpc_performance_testing.patterns import JOB_OUTPUT_NAME
@@ -11,7 +12,7 @@ class JobResultExtractor:
         self.config = test_instance_config
 
     def _find_job_output_files(self):
-        root_path = validate_path(Path(config["runtime"]["test_instance"])/"results")
+        root_path = validate_path(Path(self.config["runtime"]["test_instance"])/"results")
         self.root_path = root_path
         
         return [
@@ -30,18 +31,41 @@ class JobResultExtractor:
         file_list = self._find_job_output_files()
 
         # construct a result dataframe
-        result = JobDataFrame(Job_output_FIELD)
+        result = JobDataFrame()
 
         for f in file_list:
             data_dict = self._process_job_output_files(f, Job_output_FIELD)
             result.add_job_entry(**data_dict)
-        
+    
         # save the results as parquet
         result.save(self.root_path/"job_output.parquet")
 
 
    
+class JobStatusChecker:
 
+    @classmethod
+    def _get_job_exit_code_slurm(cls, job_id: int):
+        try:
+            result = subprocess.run(
+                ["sacct", "-j", job_id, "-n", "-o", "JobID,State,ExitCode"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+
+            for line in result.stdout.strip().splitlines():
+                parts = line.strip().split()
+                if len(parts) < 3:
+                    continue
+                jid, state, exit_code = parts[0], parts[1], parts[2]
+                if jid == job_id:  # exact match
+                    return {"job_id": job_id, "state": state, "exit_code": exit_code}
+            return None
+
+        except subprocess.CalledProcessError as e:
+            print(f"'sacct' exits with error: {e}")
+            return None
 
 
 
