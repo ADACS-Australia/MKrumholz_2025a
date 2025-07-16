@@ -1,5 +1,6 @@
 from pathlib import Path
 import subprocess
+import pandas as pd
 
 from hpc_performance_testing.utils import validate_path
 from hpc_performance_testing.patterns import JOB_OUTPUT_NAME
@@ -44,8 +45,11 @@ class JobResultExtractor:
    
 class JobStatusChecker:
 
+    def __init__(self, test_instance_config: dict):
+        self.config = test_instance_config
+
     @classmethod
-    def _get_job_exit_code_slurm(cls, job_id: int):
+    def _get_job_exit_code_slurm(cls, job_id: str):
         try:
             result = subprocess.run(
                 ["sacct", "-j", job_id, "-n", "-o", "JobID,State,ExitCode"],
@@ -67,6 +71,35 @@ class JobStatusChecker:
             print(f"'sacct' exits with error: {e}")
             return None
 
+    @classmethod
+    def _check_slurm_job_queue(cls, job_id: str):
+        try:
+            queue = subprocess.run(["squeue", "-j", job_id],
+                                   cpature_output=True,
+                                   text=True,
+                                   check=True)
+            return queue
+        except subprocess.CalledProcessError as e:
+            print(f"Job {job_id} is no longer in queue.")
+            return None
+
+    def _get_submitted_jobs(self):
+        """read from job submission parquet"""
+        job_submission_parquet = validate_path(self.config["runtime"]["test_instance"]+"/results/job_submission.parquet")
+        df = pd.read_parquet(job_submission_parquet)
+        return df["job_id"].tolist()
+    
+    def check_job_list_status_slurm(self):
+        jobs = self._get_submitted_jobs()
+        res = []
+        for job in jobs:
+            check_queue = self._check_slurm_job_queue(job)
+            if check_queue is not None:
+                return None
+            job_status = self._get_job_exit_code_slurm(job)
+            if job_status is not None:
+                res.append(job_status)
+        return res
 
 
 if __name__ == "__main__":
