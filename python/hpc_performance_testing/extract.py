@@ -75,7 +75,7 @@ class JobStatusChecker:
     def _check_slurm_job_queue(cls, job_id: str):
         try:
             queue = subprocess.run(["squeue", "-j", job_id],
-                                   cpature_output=True,
+                                   capture_output=True,
                                    text=True,
                                    check=True)
             return queue
