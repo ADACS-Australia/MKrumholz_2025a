@@ -52,7 +52,7 @@ class JobStatusChecker:
     def _get_job_exit_code_slurm(cls, job_id: str):
         try:
             result = subprocess.run(
-                ["sacct", "-j", job_id, "-n", "-o", "JobID,State,ExitCode"],
+                ["sacct", "-j", str(job_id), "-n", "-o", "JobID,State,ExitCode"],
                 capture_output=True,
                 text=True,
                 check=True
@@ -74,7 +74,7 @@ class JobStatusChecker:
     @classmethod
     def _check_slurm_job_queue(cls, job_id: str):
         try:
-            queue = subprocess.run(["squeue", "-j", job_id],
+            queue = subprocess.run(["squeue", "-j", str(job_id)],
                                    capture_output=True,
                                    text=True,
                                    check=True)
