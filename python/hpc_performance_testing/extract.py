@@ -104,6 +104,8 @@ class JobStatusChecker:
 
 if __name__ == "__main__":
     config = load_config("test_instance.yaml")
-    extractor = JobResultExtractor(config)
-    extractor.get_job_results()
+    checker = JobStatusChecker(config)
+    checker.check_job_list_status_slurm()
+    # extractor = JobResultExtractor(config)
+    # extractor.get_job_results()
     # breakpoint()
