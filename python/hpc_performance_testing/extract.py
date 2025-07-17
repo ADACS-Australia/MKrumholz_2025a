@@ -5,7 +5,7 @@ import pandas as pd
 from hpc_performance_testing.utils import validate_path
 from hpc_performance_testing.patterns import JOB_OUTPUT_NAME
 from hpc_performance_testing.parser import JobOutput
-from hpc_performance_testing.output import Job_output_FIELD, JobDataFrame
+from hpc_performance_testing.output import Job_output_FIELD, Job_status_FIELD, JobDataFrame
 from hpc_performance_testing.config import load_config
 
 class JobResultExtractor:
@@ -89,23 +89,19 @@ class JobStatusChecker:
         df = pd.read_parquet(job_submission_parquet)
         return df["job_id"].astype(str).tolist()
     
-    def _save_job_status_df(self, df):
-        output_dir = validate_path(self.config["runtime"]["test_instance"] + "/results")
-        df.to_parquet(output_dir/"job_exit_status.parquet")
-
     def check_job_list_status_slurm(self):
         jobs = self._get_submitted_jobs()
-        data = []
+        status = JobDataFrame(fields=Job_status_FIELD)
         for job in jobs:
             check_queue = self._check_slurm_job_queue(job)
             if check_queue is not None:
                 return None
             job_status = self._get_job_exit_code_slurm(job)
             if job_status is not None:
-                data.append(job_status)
-        res = pd.DataFrame(data)
-        self._save_job_status_df(res)
-        return res
+                status.add_job_entry(**job_status)
+        
+        status.save(self.config["runtime"]["test_instance"] + "/results/job_exit_status.parquet")
+        return status.df
 
 
 if __name__ == "__main__":

@@ -15,8 +15,14 @@ Job_output_FIELD = {
         "n_mpi_processes": int,
         "zone_update": dict,
         "elapse_time": float,
-        "boundary_condition_inc_main": dict
+        "boundary_condition_inc_main": dict,
     }
+
+Job_status_FIELD = {
+    "job_id": str,
+    "state": str,
+    "exit_code": str,
+}
 
 class JobDataFrame:
     
