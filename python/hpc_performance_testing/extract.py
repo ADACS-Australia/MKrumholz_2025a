@@ -87,7 +87,7 @@ class JobStatusChecker:
         """read from job submission parquet"""
         job_submission_parquet = validate_path(self.config["runtime"]["test_instance"]+"/results/job_submission.parquet")
         df = pd.read_parquet(job_submission_parquet)
-        return df["job_id"].tolist()
+        return df["job_id"].astype(str).tolist()
     
     def check_job_list_status_slurm(self):
         jobs = self._get_submitted_jobs()
