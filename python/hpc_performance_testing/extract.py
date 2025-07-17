@@ -89,6 +89,10 @@ class JobStatusChecker:
         df = pd.read_parquet(job_submission_parquet)
         return df["job_id"].astype(str).tolist()
     
+    def _save_job_status_df(self, df):
+        output_dir = validate_path(self.config["runtime"]["test_instance"] + "/result")
+        df.to_parquet(output_dir/"job_exit_status.parquet")
+
     def check_job_list_status_slurm(self):
         jobs = self._get_submitted_jobs()
         data = []
@@ -100,6 +104,7 @@ class JobStatusChecker:
             if job_status is not None:
                 data.append(job_status)
         res = pd.DataFrame(data)
+        self._save_job_status_df(res)
         return res
 
 
