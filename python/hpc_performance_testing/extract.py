@@ -91,21 +91,22 @@ class JobStatusChecker:
     
     def check_job_list_status_slurm(self):
         jobs = self._get_submitted_jobs()
-        res = []
+        data = []
         for job in jobs:
             check_queue = self._check_slurm_job_queue(job)
             if check_queue is not None:
                 return None
             job_status = self._get_job_exit_code_slurm(job)
             if job_status is not None:
-                res.append(job_status)
+                data.append(job_status)
+        res = pd.DataFrame(data)
         return res
 
 
 if __name__ == "__main__":
     config = load_config("test_instance.yaml")
     checker = JobStatusChecker(config)
-    checker.check_job_list_status_slurm()
+    status_df = checker.check_job_list_status_slurm()
     # extractor = JobResultExtractor(config)
     # extractor.get_job_results()
     # breakpoint()
