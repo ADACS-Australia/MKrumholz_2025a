@@ -90,7 +90,7 @@ class JobStatusChecker:
         return df["job_id"].astype(str).tolist()
     
     def _save_job_status_df(self, df):
-        output_dir = validate_path(self.config["runtime"]["test_instance"] + "/result")
+        output_dir = validate_path(self.config["runtime"]["test_instance"] + "/results")
         df.to_parquet(output_dir/"job_exit_status.parquet")
 
     def check_job_list_status_slurm(self):
