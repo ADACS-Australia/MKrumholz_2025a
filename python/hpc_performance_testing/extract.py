@@ -1,5 +1,6 @@
 from pathlib import Path
 import subprocess
+from enum import Enum
 import pandas as pd
 
 from hpc_performance_testing.utils import validate_path
@@ -41,6 +42,10 @@ class JobResultExtractor:
         # save the results as parquet
         result.save(self.root_path/"job_output.parquet")
 
+class JobStatus(Enum):
+    WAIT = "WAIT"
+    FINISHED_OK = "FINISHED_OK"
+    FINISHED_WITH_WARNINGS = "FINISHED_WITH_WARNINGS"
 
    
 class JobStatusChecker:
@@ -89,20 +94,28 @@ class JobStatusChecker:
         df = pd.read_parquet(job_submission_parquet)
         return df["job_id"].astype(str).tolist()
     
-    def check_job_list_status_slurm(self):
+    def check_job_list_status_slurm(self) -> JobStatus:
         jobs = self._get_submitted_jobs()
+        active_jobs = [job for job in jobs if self._check_slurm_job_queue(job)]
+
+        if active_jobs:
+            # At least one job is still pending or running
+            return JobStatus.WAIT
+
+        # All jobs are done — collect exit statuses
         status = JobDataFrame(fields=Job_status_FIELD)
+        warnings = False
+
         for job in jobs:
-            check_queue = self._check_slurm_job_queue(job)
-            if check_queue is not None:
-                return None
             job_status = self._get_job_exit_code_slurm(job)
             if job_status is not None:
                 status.add_job_entry(**job_status)
-        
-        status.save(self.config["runtime"]["test_instance"] + "/results/job_exit_status.parquet")
-        return status.df
+            else:
+                warnings = True  # missing status despite job being done
 
+        status.save(self.config["runtime"]["test_instance"] + "/results/job_exit_status.parquet")
+
+        return JobStatus.FINISHED_WITH_WARNINGS if warnings else JobStatus.FINISHED_OK
 
 if __name__ == "__main__":
     config = load_config("test_instance.yaml")
