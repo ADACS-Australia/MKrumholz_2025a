@@ -4,9 +4,8 @@ from hpc_performance_testing.extract import JobResultExtractor, JobStatusChecker
 
 def submit_jobs(config_file):
     config = load_config(config_file)
-    job = JobCreator(config)
-    # job.generate_build_file()
-    job.generate_job_scripts()
+    job_creator = JobCreator(config)
+    job_creator.run_full_pipeline()
 
 def check_jobs(test_instance_config_file):
     config = load_config(test_instance_config_file)
