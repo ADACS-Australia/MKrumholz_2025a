@@ -1,12 +1,12 @@
 #!{{ shell }}
-#SBATCH --job-name={{ test_name }}_n{{ cores }}
-#SBATCH --ntasks-per-node={{ cores_per_node }}
-#SBATCH --nodes={{ nodes }}
-#SBATCH --output={{ result_dir }}/{{ test_name }}_n{{ cores }}_JobID_%j.out
+#SBATCH --job-name={{ name }}_n{{ core }}
+#SBATCH --ntasks-per-node={{ core_per_node }}
+#SBATCH --nodes={{ node }}
+#SBATCH --output={{ result_dir }}/{{ test_name }}_n{{ core }}_JobID_%j.out
 #SBATCH --time={{ time_limit }}
 #SBATCH --mem={{ memory }}
 {% if use_gpu %}
-#SBATCH --gres=gpu:{{ cores_per_node }}
+#SBATCH --gres=gpu:{{ core_per_node }}
 {% endif %}
 
 {% if use_partition %}

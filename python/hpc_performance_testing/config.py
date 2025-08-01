@@ -27,8 +27,8 @@ def load_config(file="config.yaml"):
    
     # validation
     # check wether env script exists
-    env_script = resolve_path(config["env"]["script"])
-    config["env"]["script"] = env_script
+    env_script = resolve_path(config["hpc"]["env_setup_script"])
+    config["hpc"]["env_setup_script"] = env_script
     if not env_script.exists():
         raise FileNotFoundError(f"Environment script {env_script} is not found.")
     
