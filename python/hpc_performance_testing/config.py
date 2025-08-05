@@ -1,10 +1,101 @@
 import yaml
 from pathlib import Path
 from copy import deepcopy
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from typing import Optional, List, Literal
 
-from hpc_performance_testing.utils import resolve_path, validate_path, backup_existing_file
+from hpc_performance_testing.utils import validate_path, backup_existing_file, get_lowercase_str
+class HPCConfig(BaseModel):
+    cluster: Literal["nt", "setonix", "frontier", "gadi"]
+    scheduler: Literal["slurm", "pbs"]
+    shell: str
+    env_setup_script: str
+    gpu_build: Literal["cuda", "hip"]
+    ntasks_per_node: int
+    ncpus_per_task: Optional[int] = None
+    partition: Optional[str] = None
 
-#todo: add function to check config fields
+    @field_validator("cluster", "scheduler", "gpu_build", mode="before")
+    @classmethod
+    def lowercase_before_literal(cls, v):
+        return get_lowercase_str(v)
+
+    @field_validator("env_setup_script", mode="after")
+    @classmethod
+    def validate_env_script(cls, v):
+        return validate_path(v)
+    
+    model_config = ConfigDict(
+        extra="allow"
+    )
+
+class PathsConfig(BaseModel):
+    working_dir: str
+    test_inputs: str
+
+    @field_validator("working_dir", "test_inputs", mode="after")
+    @classmethod
+    def validate_paths(cls, v):
+        return validate_path(v)
+
+    model_config = ConfigDict(
+        extra="forbid"
+    )
+
+class ScalingConfig(BaseModel):
+    strategy: Literal["weak_3d"]
+    min_cores: Optional[int] = 1
+    max_cores: int
+
+    field_validator("strategy", mode="before")
+    @classmethod
+    def lowercase_before_literal(cls, v):
+        return get_lowercase_str(v)
+    
+    model_config = ConfigDict(
+        extra="forbid"
+    )
+
+class JobSettings(BaseModel):
+    time_limit: Optional[str]
+    memory: Optional[str]
+
+    model_config = ConfigDict(
+        extra="allow"  # allow custom test options
+    )
+
+class TestItem(BaseModel):
+    name: str
+    target: str
+    input_file: str
+    cmake_cache: Optional[List[str]] 
+    job_settings: Optional[JobSettings]
+
+    model_config = ConfigDict(
+        extra="forbid"  # allow flexible test configs
+    )
+
+class FullConfig(BaseModel):
+    hpc: HPCConfig
+    paths: PathsConfig
+    scaling: ScalingConfig
+    tests: List[TestItem]
+
+    @model_validator(mode="after")
+    def validate_input_paths(self):
+        test_inputs = self.paths.test_inputs
+        for test in self.tests:
+            full_path = test_inputs / test.input_file
+            if not full_path.exists():
+                raise FileNotFoundError(
+                    f"Input file '{test.input_file}' not found in: {test_inputs}"
+                )
+        return self
+    
+    model_config = ConfigDict(
+        extra="forbid"  # forbid unknown top-level keys
+    )
+
 
 def convert_paths_to_str(obj):
     if isinstance(obj, dict):
@@ -19,24 +110,9 @@ def convert_paths_to_str(obj):
 # Load config
 def load_config(file="config.yaml"):
     with open(file) as f:
-        config = yaml.safe_load(f)
-
-    # resolve paths
-    for key, path_value in config["paths"].items():
-        config["paths"][key] = resolve_path(path_value)
+        raw_config = yaml.safe_load(f)
+    config = FullConfig(**raw_config)
    
-    # validation
-    # check wether env script exists
-    env_script = resolve_path(config["hpc"]["env_setup_script"])
-    config["hpc"]["env_setup_script"] = env_script
-    if not env_script.exists():
-        raise FileNotFoundError(f"Environment script {env_script} is not found.")
-    
-    # check whether test_inputs directory exists
-    test_inputs_dir = config["paths"]["test_inputs"]
-    if not test_inputs_dir.exists():
-        raise FileNotFoundError(f"Test inputs directory {test_inputs_dir} is not found.")
-
     return config
 
 

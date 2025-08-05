@@ -5,6 +5,11 @@ import uuid
 from importlib.resources import files
 import shutil
 
+def get_lowercase_str(data: str):
+    if not isinstance(data, str):
+        raise TypeError(f"Expected a string, got {type(data).__name__}")
+    return data.lower()
+
 def resolve_path(path: str):
     # resolve environment variable and ~
     expanded = os.path.expanduser(os.path.expandvars(path))
@@ -19,7 +24,8 @@ def load_template(template_name):
     return (files('hpc_performance_testing') / 'templates' / template_name)
 
 def validate_path(path: Path | str) -> Path:
-    path = Path(path)
+    if isinstance(path, str):
+        path = resolve_path(path)
     if not path.exists():
         msg = f"{path} doesn't exist."
         # logger.error(msg)
