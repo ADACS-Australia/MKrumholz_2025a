@@ -3,9 +3,10 @@ hpc:
   scheduler: slurm  
   shell: /bin/bash
   env_setup_script: env_setup.sh
-  gpu_build: cuda # cuda, hip or null(cpu build) 
-  core_per_node: 4
-  partition: # optional 
+  gpu_build: cuda # cuda, hip
+  ntasks_per_node: 4 # max number of tasks per node
+  ncpus_per_task:
+  partition:
   
 
 paths:
@@ -14,6 +15,7 @@ paths:
 
 scaling:
   strategy: weak_3d
+  min_cores: # default value: 1
   max_cores: 64
 
 tests:

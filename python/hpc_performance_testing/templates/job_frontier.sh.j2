@@ -1,0 +1,22 @@
+#!{{ shell }}
+
+#SBATCH -A ast146
+#SBATCH -J {{ name }}_n{{ core }}
+#SBATCH -o {{ result_dir }}/{{ name }}_n{{ core }}_JobID_%j.out
+#SBATCH -t {{ time_limit }}
+#SBATCH -p {{ partition }}
+#SBATCH --ntasks-per-node={{ ntasks_per_node }}
+#SBATCH --cpus-per-task=7
+#SBATCH --gpus-per-task=1
+#SBATCH --gpu-bind=closest
+#SBATCH -N {{ node }}
+
+# Setup and activate environment
+source {{env_setup_script}}
+
+# GPU-aware MPI
+export MPICH_GPU_SUPPORT_ENABLED=1
+
+# Run step
+cd {{ result_dir }}
+srun {{ target }} {{ input_file }} {{ ncell_args }}

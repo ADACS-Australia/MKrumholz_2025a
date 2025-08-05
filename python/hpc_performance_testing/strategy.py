@@ -6,10 +6,10 @@ class ScalingStrategy:
         return (f'({value})', f'amr.n_cell={value}')
     
     @classmethod
-    def weak_3d_scaling(cls, init_box:list, max_cores: int):
+    def weak_3d_scaling(cls, init_box:list, init_cores: int, max_cores: int):
         dim = len(init_box) #todo: raise error when it's zero 
         core_dict = {}
-        cores = 1
+        cores = init_cores
         box = init_box[:]
         while cores <= max_cores:
             core_dict[cores] = cls._convert_to_amr_param(box)

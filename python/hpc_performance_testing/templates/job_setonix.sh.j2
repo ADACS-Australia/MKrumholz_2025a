@@ -1,0 +1,45 @@
+#!{{ shell }}
+
+#SBATCH -A pawsey0807-gpu
+#SBATCH -J {{ name }}_n{{ core }}
+#SBATCH -o {{ result_dir }}/{{ name }}_n{{ core }}_JobID_%j.out
+#SBATCH -t {{ time_limit }}
+#SBATCH -p {{ partition }}
+#SBATCH --exclusive
+#SBATCH --ntasks-per-node={{ ntasks_per_node }}
+#SBATCH --gpus-per-node={{ ntasks_per_node }}
+#SBATCH -N {{ node }}
+
+# Setup and activate environment
+source {{env_setup_script}}
+
+# always run with GPU-aware MPI
+export MPICH_GPU_SUPPORT_ENABLED=1
+
+# use correct NIC-to-GPU binding
+export MPICH_OFI_NIC_POLICY=NUMA
+
+## run
+cd {{ result_dir }}
+EXE="{{ target }}"
+INPUTS="{{ input_file }} {{ ncell_args }}"
+
+{% if ntasks_per_node == 1 %}
+srun ${EXE} ${INPUT}
+
+{% else %}
+srun bash -c "
+    case \$((SLURM_LOCALID)) in
+      0) GPU=4;;
+      1) GPU=5;;
+      2) GPU=2;;
+      3) GPU=3;;
+      4) GPU=6;;
+      5) GPU=7;;
+      6) GPU=0;;
+      7) GPU=1;;
+    esac
+    export ROCR_VISIBLE_DEVICES=\$((GPU));
+    ${EXE} ${INPUTS}"
+
+{% endif %}
