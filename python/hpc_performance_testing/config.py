@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 from typing import Optional, List, Literal
 
 from hpc_performance_testing.utils import validate_path, backup_existing_file, get_lowercase_str
+
 class HPCConfig(BaseModel):
     cluster: Literal["nt", "setonix", "frontier", "gadi"]
     scheduler: Literal["slurm", "pbs"]
@@ -44,13 +45,18 @@ class PathsConfig(BaseModel):
 
 class ScalingConfig(BaseModel):
     strategy: Literal["weak_3d"]
-    min_cores: Optional[int] = 1
+    min_cores: Optional[int] = None
     max_cores: int
 
     field_validator("strategy", mode="before")
     @classmethod
     def lowercase_before_literal(cls, v):
         return get_lowercase_str(v)
+    
+    @field_validator("min_cores", mode="after")
+    @classmethod
+    def default_min_cores(cls, v):
+        return 1 if v is None else v
     
     model_config = ConfigDict(
         extra="forbid"
@@ -116,9 +122,9 @@ def load_config(file="config.yaml"):
     return config
 
 
-def write_test_instance_meta(config: dict, test_instance: Path | str, out_dir: Path = None):
-    config_cpy = deepcopy(config)
-    test_instance = validate_path(test_instance)
+def write_test_instance_meta(config: FullConfig, test_instance_path: Path | str, out_dir: Path = None):
+    config_cpy = config.model_dump()
+    test_instance_path = validate_path(test_instance_path)
 
     if out_dir is None:
         out_dir = Path.cwd()
@@ -133,8 +139,8 @@ def write_test_instance_meta(config: dict, test_instance: Path | str, out_dir: P
 
     # Merge with runtime metadata
     config_cpy["runtime"] = {
-        "timestamp": test_instance.name ,
-        "test_instance": str(test_instance),
+        "timestamp": test_instance_path.name ,
+        "test_instance": str(test_instance_path),
          
     }
 

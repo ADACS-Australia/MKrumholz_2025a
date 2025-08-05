@@ -10,7 +10,7 @@ from datetime import datetime
 from jinja2 import Template, StrictUndefined
 
 from hpc_performance_testing.utils import load_template
-from hpc_performance_testing.config import write_test_instance_meta, load_config
+from hpc_performance_testing.config import write_test_instance_meta, load_config, TestItem, FullConfig
 from hpc_performance_testing.logger import LoggerManager, run_and_log_subprocess
 from hpc_performance_testing.strategy import ScalingStrategy
 from hpc_performance_testing.output import Job_FIELD, JobDataFrame
@@ -24,7 +24,7 @@ class TestInstance:
     path: Path
     result_dir_base: Path
     repo_dir: Path
-    config: dict
+    config: FullConfig
 
 class CodeBuilder:
     BUILD_TEMPLATE = load_template("build_all.sh.j2")
@@ -35,12 +35,12 @@ class CodeBuilder:
 
     def _add_gpu_build_dflag(self):
         self.gpu_dflag = ""
-        if self.test_instance.config["hpc"]["gpu_build"] is None:
+        if self.test_instance.config.hpc.gpu_build is None:
             pass
-        elif self.test_instance.config["hpc"]["gpu_build"].upper() == "CUDA":
+        elif self.test_instance.config.hpc.gpu_build == "cuda":
             self.gpu_dflag = "-DAMReX_GPU_BACKEND=CUDA"
             
-        elif self.test_instance.config["hpc"]["gpu_build"].upper() == "HIP":
+        elif self.test_instance.config.hpc.gpu_build == "hip":
             self.gpu_dflag = "-DAMReX_GPU_BACKEND=HIP"
     
     def generate_and_run_build(self) -> None:
@@ -48,10 +48,10 @@ class CodeBuilder:
             build_temp = Template(f.read())
 
         re_build = build_temp.render(
-        shell = self.test_instance.config["hpc"]["shell"],
+        shell = self.test_instance.config.hpc.shell,
         test_instance = str(self.test_instance.path),
-        env_setup_script = self.test_instance.config["hpc"]["env_setup_script"],
-        tests = self.test_instance.config["tests"],
+        env_setup_script = self.test_instance.config.hpc.env_setup_script,
+        tests = self.test_instance.config.tests,
         gpu_build_flag = self.gpu_dflag
         )
         build_file = self.test_instance.path/"build_all.sh"
@@ -87,7 +87,7 @@ class JobScheduler(ABC):
     
     def _estimate_nnodes(self, ncores):
         """Estimate number of nodes needed"""
-        core_per_node = self.test_instance.config["hpc"]["ntasks_per_node"]
+        core_per_node = self.test_instance.config.hpc.ntasks_per_node
         return (int(ncores) + int(core_per_node) - 1) // int(core_per_node)
     
     def _read_ncell(self, input_file) -> list:
@@ -104,11 +104,10 @@ class JobScheduler(ABC):
         return nums
     
     def _get_scaling_strategy(self):
-        scaling = self.test_instance.config["scaling"]["strategy"]
-        max_cores = self.test_instance.config["scaling"]["max_cores"]
-        _min_value = self.test_instance.config["scaling"]["min_cores"]
-        min_cores = 1 if _min_value is None else _min_value
-
+        scaling = self.test_instance.config.scaling.strategy
+        max_cores = self.test_instance.config.scaling.max_cores
+        min_cores = self.test_instance.config.scaling.min_cores
+        
         strategies = {
         "weak_3d": ScalingStrategy.weak_3d_scaling
         }
@@ -122,25 +121,29 @@ class JobScheduler(ABC):
     def use_gpu(self):
         return self.test_instance.config["hpc"]["gpu_build"].upper() in {"CUDA", "HIP"}
     
-    def _prepare_template_vars(self, test_item: dict, **job_params) -> dict:
+    def _prepare_template_vars(self, test_item: TestItem, **job_params) -> dict:
         """Prepare common template variables used by all schedulers"""
         # get global hpc job settings
-        global_hpc = self.test_instance.config["hpc"]
+        global_hpc = self.test_instance.config.hpc.model_dump()
 
         # test specific vars
-        koi = {"name", "target", "input_file"}
-        test_var = {k: test_item[k] for k in koi if k in test_item}
+        test_var = {
+            "name": test_item.name,
+            "target": str(self.test_instance.repo_dir/"build/src/problems"/test_item.target),
+            "input_file": test_item.input_file
+        
+        }
+        
+        # test-specific job settings (already validated)
+        if test_item.job_settings:
+            test_var.update(test_item.job_settings.model_dump())
 
-        # Get test specific hpc settings if they are provided
-        test_var.update(test_item.get("job_settings", {}))
-        # update target value
-        test_var["target"] = str(self.test_instance.repo_dir/"build/src/problems"/test_item["target"])
         
         # supplementary 
-        sup = {
-            "use_gpu": self.use_gpu,
-            "use_partition": self.test_instance.config.get("partition") is not None,
-        }
+        # sup = {
+        #     "use_gpu": self.use_gpu,
+        #     "use_partition": self.test_instance.config.get("partition") is not None,
+        # }
 
         # update job_params
         ncell_params = job_params.get("ncell_params")
@@ -149,9 +152,9 @@ class JobScheduler(ABC):
 
         # all settings 
         # notice test specific settings will overwrite global settings
-        return {**global_hpc, **sup, **test_var, **job_params, "ncell_args": ncell_args}
+        return {**global_hpc, **test_var, **job_params, "ncell_args": ncell_args}
     
-    def render_single_job_script(self, test_item: dict, **job_params) -> str:
+    def render_single_job_script(self, test_item: TestItem, **job_params) -> str:
                 
         # Get template variable value
         template_vars = self._prepare_template_vars(test_item, **job_params)
@@ -167,15 +170,15 @@ class JobScheduler(ABC):
         # Initiate dataframe
         output = JobDataFrame(Job_FIELD)
         
-        for test in self.test_instance.config["tests"]:
-            input_file = str(self.test_instance.config["paths"]["test_inputs"] / test["input_file"])
+        for test in self.test_instance.config.tests:
+            input_file = str(self.test_instance.config.paths.test_inputs / test.input_file)
             init_ncell = self._read_ncell(input_file)
             core_dict = scaling_func(init_ncell, min_cores, max_cores)
             # breakpoint()
             for core, arg_value in core_dict.items():
                 node = self._estimate_nnodes(core)
                 # create a directory for each test job
-                result_dir = str(self.test_instance.result_dir_base / f"{test['name']}_n{core}")
+                result_dir = str(self.test_instance.result_dir_base / f"{test.name}_n{core}")
                 os.makedirs(result_dir, exist_ok=True)
                 
                 # Prepare job parameters
@@ -188,13 +191,13 @@ class JobScheduler(ABC):
                 }
 
                 # overwrite ntasks-per-node if core < ntasks-per-node in config.yaml
-                if core < self.test_instance.config["hpc"]["ntasks_per_node"]:
+                if core < self.test_instance.config.hpc.ntasks_per_node:
                     job_params['ntasks_per_node'] = core
 
                 # Generate job script using scheduler-specific logic
                 rendered = self.render_single_job_script(test, **job_params)
                 
-                job_name = result_dir + f"/{test['name']}_n{core}.sh"
+                job_name = result_dir + f"/{test.name}_n{core}.sh"
                 with open(job_name, "w") as f:
                     f.write(rendered)
                 logger.info(f"✅ Job script generated: {job_name}")
@@ -204,10 +207,10 @@ class JobScheduler(ABC):
                
                 # Record job information
                 params = {
-                    "test_name": test["name"],
+                    "test_name": test.name,
                     "n_cell": arg_value[0],
                     "n_cores": core,
-                    "cores_per_node": self.test_instance.config["hpc"]["core_per_node"],
+                    "cores_per_node": self.test_instance.config.hpc.ntasks_per_node,
                     "n_nodes": node,
                 }
                 output.add_job_entry(job_id=job_id, **params)
@@ -217,7 +220,7 @@ class JobScheduler(ABC):
     
     
 class SlurmScheduler(JobScheduler):
-    """job scheduler implementation on HPC NT"""
+    """job scheduler implementation on SLURM HPCs"""
     
     def get_job_id(self, submit_stdout: str) -> str:
         match = re.search(r"Submitted batch job (\d+)", submit_stdout)
@@ -239,8 +242,14 @@ class SlurmScheduler(JobScheduler):
             sys.exit(1)
         return job_id
     
+class PbsScheduler(JobScheduler):
+    """job scheduler implementation on PBS HPCs"""
 
-    
+    def get_job_id(self, submit_stdout: str) -> str:
+        pass
+
+    def submit_job(self, jobfile: str) -> str:
+        pass
         
 
 class JobCreator:
@@ -267,7 +276,7 @@ class JobCreator:
     def _create_test_instance(self) -> TestInstance:
         """Create test instance with all necessary paths and metadata"""
         timestamp = self._set_timestamp()
-        working_dir = self.config["paths"]["working_dir"] / "performance_test"
+        working_dir = self.config.paths.working_dir / "performance_test"
         test_instance_path = self._make_dir(working_dir / timestamp, parents=True, exist_ok=False)
         logger.info(f"Initialize test instance: {test_instance_path}")
         result_dir_base = self._make_dir(test_instance_path / "results", parents=True, exist_ok=False)
@@ -294,7 +303,7 @@ class JobCreator:
     def _create_scheduler(self) -> JobScheduler:
         """Factory method to create appropriate scheduler based on config"""
         # Read HPC type from config, with default fallback
-        hpc = self.config["hpc"]["cluster"].lower()
+        hpc = self.config.hpc.cluster
         
         schedulers = {
             "nt": [SlurmScheduler, "job_slurm.sh.j2"],
@@ -322,7 +331,8 @@ class JobCreator:
         self.generate_and_submit_jobs()
 
 if __name__ == "__main__":
-    config = load_config("config_frontier.yaml")
+    config = load_config("config_setonix.yaml")
+    # breakpoint()
     job_creator = JobCreator(config)
     job_creator.run_full_pipeline()
     

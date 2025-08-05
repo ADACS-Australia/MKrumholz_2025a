@@ -10,7 +10,7 @@
 #SBATCH --gpus-per-task=1
 #SBATCH --gpu-bind=closest
 
-{% if use_partition %}
+{% if partition %}
 #SBATCH --partition={{ partition }}
 {% endif %}
 
