@@ -23,10 +23,18 @@
 #PBS -l storage=scratch/jh2+gdata/jh2
 #PBS -l jobfs={{ jobfs }}
 
-# --- initialize Quokka ---
+# Setup and activate environment
+source {{environment}}
+
+# Redict output file (to have a universal outpuf file pattern across hpcs)
+jobid=${PBS_JOBID%%.*}
+logfile="{{ result_dir }}/{{ name }}_n{{ core }}_JobID_${jobid}.out"
+
+# Run step
+
 MPI_OPTIONS="-np {{ core }} --map-by numa:SPAN --bind-to numa --mca pml ucx"
 echo "Using MPI_OPTIONS = $MPI_OPTIONS"
 
-# Run step
+
 cd {{ result_dir }}
-mpirun $MPI_OPTIONS {{ target }} {{ input_file }} {{ ncell_args }}
+mpirun $MPI_OPTIONS {{ target }} {{ input_file }} {{ ncell_args }} > $logfile 2>&1
