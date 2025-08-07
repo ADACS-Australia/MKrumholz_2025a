@@ -1,17 +1,18 @@
 hpc:
-  cluster: NT # support none (default: NT), setonix, gadi
+  cluster: NT # nt, setonix, gadi, frontier
   scheduler: slurm  
-  shell: /bin/bash
-  env_setup_script: env_setup.sh
   gpu_build: cuda # cuda, hip
-  ntasks_per_node: 4 # max number of tasks per node
-  ncpus_per_task:
-  partition:
   
-
 paths:
   working_dir: ./
+  environment: env_setup.sh
   test_inputs: ~/ADACS/repo/MKrumholz_2025a/tests_input
+
+global_job_settings:
+  shell: /bin/bash
+  ntasks_per_node: 4 # max number of tasks per node
+  mem_per_node: 4G
+  
 
 scaling:
   strategy: weak_3d
@@ -27,8 +28,8 @@ tests:
       - -DQUOKKA_PYTHON=OFF 
       - -DAMReX_SPACEDIM=3
     job_settings:
-      time_limit: 00:10:00
-      memory: 4G
+      walltime: 00:10:00
+      mem_per_node: 4G
     
 
  
