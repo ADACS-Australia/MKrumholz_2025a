@@ -1,0 +1,32 @@
+#!{{ shell }}
+
+#PBS -N {{ name }}_n{{ core }}
+{% if account %}
+#PBS -P {{ account }}
+{% else %}
+#PBS -P jh2
+{% endif %}
+
+#PBS -o {{ result_dir }}
+#PBS -e {{ result_dir }}
+
+{% if partition %}
+#PBS -q {{ partition }}
+{% else %}
+#PBS -q gpuvolta
+{% endif %}
+
+#PBS -l ncpus={{ ncpus }}
+#PBS -l ngpus= {{ core }}
+#PBS -l mem={{ mem }}
+#PBS -l walltime={{ walltime }}
+#PBS -l storage=scratch/jh2+gdata/jh2
+#PBS -l jobfs={{ jobfs }}
+
+# --- initialize Quokka ---
+MPI_OPTIONS="-np {{ core }} --map-by numa:SPAN --bind-to numa --mca pml ucx"
+echo "Using MPI_OPTIONS = $MPI_OPTIONS"
+
+# Run step
+cd {{ result_dir }}
+mpirun $MPI_OPTIONS {{ target }} {{ input_file }} {{ ncell_args }}

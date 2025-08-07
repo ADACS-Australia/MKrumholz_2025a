@@ -14,7 +14,7 @@ from hpc_performance_testing.config import write_test_instance_meta, load_config
 from hpc_performance_testing.logger import LoggerManager, run_and_log_subprocess
 from hpc_performance_testing.strategy import ScalingStrategy
 from hpc_performance_testing.output import Job_FIELD, JobDataFrame
-
+from hpc_performance_testing.types import MemSize
 # get logger
 logger = LoggerManager.get_logger()
 
@@ -86,7 +86,7 @@ class JobScheduler(ABC):
         """Submit job and return job ID"""
         pass
     
-    def _set_extra_var(self, test_item: TestItem, **job_params) -> dict|None:
+    def _set_extra_var(self, **job_params) -> dict|None:
         """Set extra variables needed to render template;
            Overwrite this function if needed
         """
@@ -166,8 +166,8 @@ class JobScheduler(ABC):
         base_var = {**env_var, **test_var, **job_settings, "ncell_args": ncell_args}
         
         # extra vars
-        extra_var = self._set_extra_var(test_item, **job_settings)
-        
+        extra_var = self._set_extra_var(**base_var)
+       
         return {**base_var, **extra_var} if extra_var else base_var
         
 
@@ -175,7 +175,7 @@ class JobScheduler(ABC):
                 
         # Get template variable value
         template_vars = self._prepare_template_vars(test_item, **job_settings)
-    
+        
         return self.template.render(**template_vars)
     
     def generate_all_job_scripts(self):
@@ -277,16 +277,31 @@ class SlurmScheduler(JobScheduler):
 class PbsScheduler(JobScheduler):
     """job scheduler implementation on PBS HPCs"""
     def _set_extra_var(self, **params):
-        return super()._set_extra_var(**params)
+        if self.test_instance.config.hpc.cluster == "gadi":
+            required_keys = ["cpus_per_task", "core", "mem_per_node", "jobfs_per_node", "node"]
+            missing_keys = [key for key in required_keys if key not in params or params[key] is None]
 
-    def _gadi_var(self, **params):
-        for key in ["ncpus_per_task", "n_cores", "mem_per_node", "jobfs_per_node", "node"]:
-            assert key in params, f"Missing required param: {key}"
+            if missing_keys:
+                raise ValueError(f"Missing or None parameters for Gadi jobs: {missing_keys}")
 
+            return self._gadi_var(
+                cpus_per_task=params["cpus_per_task"],
+                core=params["core"],
+                mem_per_node=params["mem_per_node"],
+                jobfs_per_node=params["jobfs_per_node"],
+                node=params["node"]
+            )
+            
+        else:
+            return super()._set_extra_var(**params)
+
+    def _gadi_var(self, cpus_per_task: int, core: int, 
+                  mem_per_node: MemSize, jobfs_per_node: MemSize, node: int):
+        
         return {
-            "n_cpu": params["ncpus_per_task"] * params["n_cores"],
-            "mem": params["mem_per_node"].scale(params["node"]),
-            "jobfs": params["jobfs_per_node"] * params["node"],
+            "ncpus": cpus_per_task * core,
+            "mem": mem_per_node.scale(node),
+            "jobfs": jobfs_per_node.scale(node),
         }
         
 
@@ -377,7 +392,7 @@ class JobCreator:
         self.generate_and_submit_jobs()
 
 if __name__ == "__main__":
-    config = load_config("config.yaml")
+    config = load_config("config_gadi.yaml")
     # breakpoint()
     job_creator = JobCreator(config)
     job_creator.run_full_pipeline()

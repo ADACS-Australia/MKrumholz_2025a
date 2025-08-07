@@ -1,18 +1,35 @@
 #!{{ shell }}
 
+{% if account %}
+#SBATCH -A {{ account }}
+{% else %}
 #SBATCH -A ast146
+{% endif %}
+
 #SBATCH -J {{ name }}_n{{ core }}
 #SBATCH -o {{ result_dir }}/{{ name }}_n{{ core }}_JobID_%j.out
-#SBATCH -t {{ time_limit }}
+#SBATCH -t {{ walltime }}
+
+{% if partition %}
 #SBATCH -p {{ partition }}
+{% else %}
+#SBATCH -p batch
+{% endif %}
+
 #SBATCH --ntasks-per-node={{ ntasks_per_node }}
+
+{% if cpus_per_task %}
+#SBATCH --cpus-per-task = {{ cpus_per_task }}
+{% else %}
 #SBATCH --cpus-per-task=7
+{% endif %}
+
 #SBATCH --gpus-per-task=1
 #SBATCH --gpu-bind=closest
 #SBATCH -N {{ node }}
 
 # Setup and activate environment
-source {{env_setup_script}}
+source {{environment}}
 
 # GPU-aware MPI
 export MPICH_GPU_SUPPORT_ENABLED=1
