@@ -1,0 +1,37 @@
+hpc:
+  cluster: frontier # nt, setonix, gadi, frontier
+  scheduler: slurm  
+  gpu_build: hip # cuda, hip
+  shell: /usr/bin/env zsh
+  
+paths:
+  working_dir: ./
+  environment: env_setup.sh
+  test_inputs: ~/ADACS/repo/MKrumholz_2025a/tests_input
+
+global_job_settings:
+  ntasks_per_node: 8 # max number of tasks per node
+  cpus_per_task:
+  partition: batch
+
+  
+
+scaling:
+  strategy: weak_3d
+  min_cores: # default value: 1
+  max_cores: 64
+
+tests:
+  - name: test_hydro3d_blast
+    target: HydroBlast3D/test_hydro3d_blast
+    input_file: blast_32.in
+    cmake_cache:
+      - -DCMAKE_BUILD_TYPE=Release 
+      - -DQUOKKA_PYTHON=OFF 
+      - -DAMReX_SPACEDIM=3
+    job_settings:
+      walltime: 00:10:00
+
+    
+
+ 
