@@ -306,10 +306,24 @@ class PbsScheduler(JobScheduler):
         
 
     def get_job_id(self, submit_stdout: str) -> str:
-        pass
+        match = re.search(r"^(\d+)", submit_stdout.strip())
+        return match.group(1) if match else None
 
     def submit_job(self, jobfile: str) -> str:
-        pass
+        try:
+            submit = subprocess.run(["qsub", jobfile], capture_output=True, text=True, check=True)
+            job_id = self.get_job_id(submit.stdout)
+            logger.info(f"Submit job: {job_id}")
+        except subprocess.CalledProcessError as e:
+            msg = (
+            f"Job submission failed!\n"
+            f"Command: {' '.join(e.cmd)}\n"
+            f"Return code: {e.returncode}\n"
+            f"stderr:\n{e.stderr.strip()}"
+            )
+            logger.error(msg)
+            sys.exit(1)
+        return job_id
         
 
 class JobCreator:
