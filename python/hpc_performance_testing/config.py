@@ -21,6 +21,7 @@ class HPCConfig(BaseModel):
     cluster: str
     scheduler: Literal["slurm", "pbs"]
     gpu_build: Literal["cuda", "hip"]
+    shell: str
 
     @field_validator("cluster", "scheduler", "gpu_build", mode="before")
     @classmethod
@@ -64,7 +65,6 @@ class PathsConfig(BaseModel):
     )
 
 class JobSettings(BaseModel):
-    shell: Optional[str] = None
     ntasks_per_node: Optional[int] = None
     cpus_per_task: Optional[int] = None
     walltime: Optional[str] = None
@@ -82,10 +82,9 @@ class JobSettings(BaseModel):
         return v if isinstance(v, MemSize) else MemSize(v)
     
     model_config = ConfigDict(
-        extra="allow", # allow custom job options
+        extra="forbid", # allow custom job options
         arbitrary_types_allowed=True
     )
-
 
 class ScalingConfig(BaseModel):
     strategy: Literal["weak_3d"]
@@ -139,7 +138,7 @@ class FullConfig(BaseModel):
     def validate_job_settings(self):
         global_settings = self.global_job_settings
 
-        required_fields = ['walltime', 'shell', 'ntasks_per_node']
+        required_fields = ['walltime','ntasks_per_node']
 
         for field in required_fields:
             global_value = getattr(global_settings, field, None)

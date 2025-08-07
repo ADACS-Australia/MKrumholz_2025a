@@ -2,6 +2,7 @@ hpc:
   cluster: NT # nt, setonix, gadi, frontier
   scheduler: slurm  
   gpu_build: cuda # cuda, hip
+  shell: /bin/bash
   
 paths:
   working_dir: ./
@@ -9,7 +10,6 @@ paths:
   test_inputs: ~/ADACS/repo/MKrumholz_2025a/tests_input
 
 global_job_settings:
-  shell: /bin/bash
   ntasks_per_node: 4 # max number of tasks per node
   mem_per_node: 4G
   

@@ -5,8 +5,8 @@ Job_FIELD = {
              "job_id": str,
             "test_name": str,            
             "n_cell": str,
-            "n_cores": int,
-            "cores_per_node": int,
+            "n_gpu": int,
+            "gpus_per_node": int,
             "n_nodes": int,
         }
 
