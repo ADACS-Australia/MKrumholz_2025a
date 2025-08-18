@@ -171,14 +171,18 @@ def convert_non_str_to_str(obj):
     else:
         return obj
 
-# Load config
-def load_config(file="config.yaml"):
+# Load config with validation
+def load_config(file: str) -> FullConfig:
     with open(file) as f:
         raw_config = yaml.safe_load(f)
     config = FullConfig(**raw_config)
    
     return config
 
+def load_yaml(file: str) -> dict:
+    with open(file) as f:
+        data = yaml.safe_load(f)
+    return data
 
 def write_test_instance_meta(config: FullConfig, test_instance_path: Path | str, out_dir: Path = None):
     config_cpy = config.model_dump()

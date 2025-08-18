@@ -1,13 +1,16 @@
 from pathlib import Path
 import subprocess
 from enum import Enum
+from abc import ABC, abstractmethod
+from typing import Optional, Dict
+import re
 import pandas as pd
 
 from hpc_performance_testing.utils import validate_path
 from hpc_performance_testing.patterns import JOB_OUTPUT_NAME
 from hpc_performance_testing.parser import JobOutput
 from hpc_performance_testing.output import Job_output_FIELD, Job_status_FIELD, JobDataFrame
-from hpc_performance_testing.config import load_config
+from hpc_performance_testing.config import load_yaml
 
 class JobResultExtractor:
     def __init__(self, test_instance_config: dict):
@@ -47,14 +50,34 @@ class JobStatus(Enum):
     FINISHED_OK = "FINISHED_OK"
     FINISHED_WITH_WARNINGS = "FINISHED_WITH_WARNINGS"
 
-   
-class JobStatusChecker:
-
-    def __init__(self, test_instance_config: dict):
-        self.config = test_instance_config
-
+class JobMonitorBase(ABC):
     @classmethod
-    def _get_job_exit_code_slurm(cls, job_id: str):
+    @abstractmethod
+    def check_active_job(cls, job_id: str):
+        """Check whether a job is active: in queue or running"""
+        pass
+    
+    @classmethod
+    @abstractmethod
+    def retrieve_finished_job(cls, job_id: str):
+        """Get job status of a finished job"""
+        pass
+
+class SlurmJobMonitor(JobMonitorBase):
+    @classmethod
+    def check_active_job(cls, job_id: str):
+        try:
+            queue = subprocess.run(["squeue", "-j", str(job_id)],
+                                   capture_output=True,
+                                   text=True,
+                                   check=True)
+            return queue
+        except subprocess.CalledProcessError as e:
+            print(f"Job {job_id} is no longer in queue.")
+            return None
+    
+    @classmethod
+    def retrieve_finished_job(cls, job_id: str):
         try:
             result = subprocess.run(
                 ["sacct", "-j", str(job_id), "-n", "-o", "JobID,State,ExitCode"],
@@ -76,27 +99,82 @@ class JobStatusChecker:
             print(f"'sacct' exits with error: {e}")
             return None
 
+class PbsJobMonitor(JobMonitorBase):
     @classmethod
-    def _check_slurm_job_queue(cls, job_id: str):
+    def check_active_job(cls, job_id: str):
         try:
-            queue = subprocess.run(["squeue", "-j", str(job_id)],
-                                   capture_output=True,
-                                   text=True,
-                                   check=True)
-            return queue
+            # qstat returns non-zero when job is finished or unknown
+            queue = subprocess.run(
+                ["qstat", str(job_id)],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            return queue  
+
         except subprocess.CalledProcessError as e:
-            print(f"Job {job_id} is no longer in queue.")
+            stderr = e.stderr.strip()
+            if "Job has finished" in stderr:
+                print(f"Job {job_id} has finished (not in queue).")
+            elif "Unknown Job Id" in stderr:
+                print(f"Job {job_id} not found (possibly too old).")
+            else:
+                print(f"qstat returned error for job {job_id}: {stderr}")
+            return None
+        
+    @staticmethod
+    def _parse_qstat_fx(stdout: str) -> Optional[Dict[str, str]]:
+        
+        m_state = re.search(r'(?m)^\s*job_state\s*=\s*([A-Z])\s*$', stdout)
+        m_exit  = re.search(r'(?m)^\s*Exit_status\s*=\s*(-?\d+)\s*$', stdout)
+
+        state = m_state.group(1) if m_state else "UNKNOWN"
+        exit_code = m_exit.group(1) if m_exit else "UNKNOWN"
+        return state, exit_code
+    
+    @classmethod    
+    def retrieve_finished_job(cls, job_id: str):
+        try:
+            result = subprocess.run(
+                ["qstat", "-fx", str(job_id)],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            state, exit_code = cls._parse_qstat_fx(result.stdout)
+            return {"job_id": job_id, "state": state, "exit_code": exit_code}
+
+        except subprocess.CalledProcessError as e:
+            print(f"'qstat -fx' exits with error: {e}")
             return None
 
+class JobStatusChecker:
+
+    def __init__(self, test_instance_config: dict):
+        self.config = test_instance_config
+        self.scheduler = self._get_scheduler()
+
+    def _get_scheduler(self):
+        return self.config["hpc"]["scheduler"]
+
+    def _get_job_monitor(self):
+        if self.scheduler.lower() == "slurm":
+            return SlurmJobMonitor
+        if self.scheduler.lower() == "pbs":
+            return PbsJobMonitor
+        else:
+            raise NotImplementedError(f"HPC with scheduler {self.scheduler} is not supported yet. Only PBS and SLURM are supported.")
+        
     def _get_submitted_jobs(self):
         """read from job submission parquet"""
         job_submission_parquet = validate_path(self.config["runtime"]["test_instance"]+"/results/job_submission.parquet")
         df = pd.read_parquet(job_submission_parquet)
         return df["job_id"].astype(str).tolist()
     
-    def check_job_list_status_slurm(self) -> JobStatus:
+    def check_jobs(self) -> JobStatus:
         jobs = self._get_submitted_jobs()
-        active_jobs = [job for job in jobs if self._check_slurm_job_queue(job)]
+        jmonitor = self._get_job_monitor()
+        active_jobs = [job for job in jobs if jmonitor.check_active_job(job)]
 
         if active_jobs:
             # At least one job is still pending or running
@@ -107,7 +185,7 @@ class JobStatusChecker:
         warnings = False
 
         for job in jobs:
-            job_status = self._get_job_exit_code_slurm(job)
+            job_status = jmonitor.retrieve_finished_job(job)
             if job_status is not None:
                 status.add_job_entry(**job_status)
             else:
@@ -118,9 +196,11 @@ class JobStatusChecker:
         return JobStatus.FINISHED_WITH_WARNINGS if warnings else JobStatus.FINISHED_OK
 
 if __name__ == "__main__":
-    config = load_config("test_instance.yaml")
+    config = load_yaml("test_instance.yaml")
+    # breakpoint()
     checker = JobStatusChecker(config)
-    status = checker.check_job_list_status_slurm()
+    breakpoint()
+    status = checker.check_jobs()
     # extractor = JobResultExtractor(config)
     # extractor.get_job_results()
     # breakpoint()
