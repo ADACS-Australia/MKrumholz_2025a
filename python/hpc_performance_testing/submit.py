@@ -65,7 +65,7 @@ class CodeBuilder:
             f.write(re_build)
         logger.info("✅ Build script generated: build_all.sh")
         # Run the build script
-        # run_and_log_subprocess([self.test_instance.config["hpc"]["shell"], build_file], logger=logger, batch_size=1)
+        run_and_log_subprocess([self.test_instance.config.hpc.shell, build_file], logger=logger, batch_size=1)
         logger.info("Finish building the tests.")
 
 
