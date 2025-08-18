@@ -24,6 +24,7 @@ def extract_results(output_config_file):
 
 
 if __name__ == "__main__":
+    submit_jobs("config_nt.yaml")
     # submit_jobs("config.yaml")
-    status = check_jobs("test_instance.yaml")
+    # status = check_jobs("test_instance.yaml")
     # extract_results("test_instance.yaml")
