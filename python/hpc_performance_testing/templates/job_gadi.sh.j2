@@ -7,9 +7,6 @@
 #PBS -P jh2
 {% endif %}
 
-#PBS -o {{ result_dir }}
-#PBS -e {{ result_dir }}
-
 {% if partition %}
 #PBS -q {{ partition }}
 {% else %}
