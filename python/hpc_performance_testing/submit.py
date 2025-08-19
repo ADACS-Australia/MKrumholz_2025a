@@ -201,7 +201,8 @@ class JobScheduler(ABC):
                 node = self._estimate_nnodes(core_per_node, core)
 
                 # create a directory for each test job
-                result_dir = str(self.test_instance.result_dir_base / f"{test.name}_n{core}")
+                test_folder = f"{test.name}_n{core}"
+                result_dir = str(self.test_instance.result_dir_base / test_folder)
                 os.makedirs(result_dir, exist_ok=True)
                 
                 # Prepare job parameters
@@ -234,6 +235,7 @@ class JobScheduler(ABC):
                 output_params = {
                     "job_id": job_id,
                     "test_name": test.name,
+                    "test_folder": test_folder,
                     "n_cell": arg_value[0],
                     "n_gpu": core,
                     "gpus_per_node": job_settings["ntasks_per_node"],

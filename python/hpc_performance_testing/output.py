@@ -2,8 +2,9 @@ import os
 import pandas as pd
 
 Job_FIELD = {
-             "job_id": str,
-            "test_name": str,            
+            "job_id": str,
+            "test_name": str,    
+            "test_folder": str,        
             "n_cell": str,
             "n_gpu": int,
             "gpus_per_node": int,
