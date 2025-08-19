@@ -1,8 +1,5 @@
 #!/bin/bash
-
-# clean up
-module purge
-
+# swap to cpe/24.11
 source /opt/cray/pe/cpe/24.11/restore_lmod_system_defaults.sh
 
 module load cpe/24.11
