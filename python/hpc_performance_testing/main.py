@@ -15,7 +15,7 @@ def check_jobs(test_instance_config_file):
     return status
 
 def extract_results(output_config_file):
-    config = load_config(output_config_file)
+    config = load_yaml(output_config_file)
     result = JobResultExtractor(config)
     result.get_job_results()
 
