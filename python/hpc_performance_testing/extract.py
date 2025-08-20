@@ -47,8 +47,7 @@ class JobResultExtractor:
 
 class JobStatus(Enum):
     WAIT = "WAIT"
-    FINISHED_OK = "FINISHED_OK"
-    FINISHED_WITH_WARNINGS = "FINISHED_WITH_WARNINGS"
+    FINISHED = "FINISHED"
 
 class JobMonitorBase(ABC):
     @classmethod
@@ -153,6 +152,7 @@ class JobStatusChecker:
     def __init__(self, test_instance_config: dict):
         self.config = test_instance_config
         self.scheduler = self._get_scheduler()
+        self.output_file = self.config["runtime"]["test_instance"] + "/results/job_exit_status.parquet"
 
     def _get_scheduler(self):
         return self.config["hpc"]["scheduler"]
@@ -165,36 +165,50 @@ class JobStatusChecker:
         else:
             raise NotImplementedError(f"HPC with scheduler {self.scheduler} is not supported yet. Only PBS and SLURM are supported.")
         
-    def _get_submitted_jobs(self):
+    def _get_submitted_jobs(self) -> list:
         """read from job submission parquet"""
         job_submission_parquet = validate_path(self.config["runtime"]["test_instance"]+"/results/job_submission.parquet")
         df = pd.read_parquet(job_submission_parquet)
         return df["job_id"].astype(str).tolist()
     
+    def _init_output(self):
+        if not Path(self.output_file).exists():
+            return JobDataFrame(fields=Job_status_FIELD)
+        else:
+            df = pd.read_parquet(self.output_file)
+            return JobDataFrame.from_df(df=df, fields=Job_status_FIELD)
+            
     def check_jobs(self) -> JobStatus:
         jobs = self._get_submitted_jobs()
         jmonitor = self._get_job_monitor()
+
         active_jobs = [job for job in jobs if jmonitor.check_active_job(job)]
+        _active_set = set(active_jobs)
+        finished_jobs = [job for job in jobs if job not in _active_set]
+
+        if finished_jobs:
+            output = self._init_output()
+            recorded = output.job_list
+            _recorded_set = set(recorded)
+            unrecorded_fin = [job for job in finished_jobs if job not in _recorded_set]
+
+            if unrecorded_fin:
+
+                for job in unrecorded_fin:
+
+                    job_status = jmonitor.retrieve_finished_job(job)
+                    if job_status is not None:
+                        output.add_job_entry(**job_status)
+
+                output.save(self.output_file)
+
 
         if active_jobs:
             # At least one job is still pending or running
             return JobStatus.WAIT
-
-        # All jobs are done — collect exit statuses
-        status = JobDataFrame(fields=Job_status_FIELD)
-        warnings = False
-
-        for job in jobs:
-            job_status = jmonitor.retrieve_finished_job(job)
-            if job_status is not None:
-                status.add_job_entry(**job_status)
-            else:
-                warnings = True  # missing status despite job being done
-
-        status.save(self.config["runtime"]["test_instance"] + "/results/job_exit_status.parquet")
-
-        return JobStatus.FINISHED_WITH_WARNINGS if warnings else JobStatus.FINISHED_OK
-
+        
+        return JobStatus.FINISHED
+    
 if __name__ == "__main__":
     config = load_yaml("test_instance.yaml")
     # breakpoint()
