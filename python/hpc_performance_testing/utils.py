@@ -5,6 +5,11 @@ import uuid
 from importlib.resources import files
 import shutil
 
+from hpc_performance_testing.logger import LoggerManager
+
+# get logger
+logger = LoggerManager.get_logger()
+
 def get_lowercase_str(data: str):
     if not isinstance(data, str):
         raise TypeError(f"Expected a string, got {type(data).__name__}")
@@ -28,7 +33,6 @@ def validate_path(path: Path | str) -> Path:
         path = resolve_path(path)
     if not path.exists():
         msg = f"{path} doesn't exist."
-        # logger.error(msg)
         raise FileNotFoundError(msg)  
     return path
 

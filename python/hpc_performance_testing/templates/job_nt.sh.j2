@@ -15,9 +15,9 @@
 {% endif %}
 
 # Setup and activate environment
-source {{environment}}
+source "{{environment}}"
 
 # Run step
-cd {{ result_dir }}
-srun {{ target }} {{ input_file }} {{ ncell_args }}
+cd "{{ result_dir }}"
+srun {{ mpi_opt | default("", true) }} "{{ target }}" "{{ input_file }}" {{ ncell_args }}
 

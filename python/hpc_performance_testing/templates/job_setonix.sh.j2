@@ -1,19 +1,12 @@
 #!{{ shell }}
 
-{% if account %}
-#SBATCH -A {{ account }}
-{% else %}
-#SBATCH -A pawsey0807-gpu
-{% endif %}
+{% if account %}#SBATCH -A {{ account }} {% else %}#SBATCH -A pawsey0807-gpu {% endif %}
 
 #SBATCH -J {{ name }}_n{{ core }}
 #SBATCH -o {{ result_dir }}/{{ name }}_n{{ core }}_JobID_%j.out
 #SBATCH -t {{ walltime }}
 
-{% if partition %}
-#SBATCH -p {{ partition }}
-{% else %}
-#SBATCH -p gpu
+{% if partition %}#SBATCH -p {{ partition }}{% else %}#SBATCH -p gpu
 {% endif %}
 
 #SBATCH --exclusive
@@ -22,7 +15,7 @@
 #SBATCH -N {{ node }}
 
 # Setup and activate environment
-source {{environment}}
+source "{{environment}}"
 
 # always run with GPU-aware MPI
 export MPICH_GPU_SUPPORT_ENABLED=1
@@ -31,7 +24,7 @@ export MPICH_GPU_SUPPORT_ENABLED=1
 export MPICH_OFI_NIC_POLICY=NUMA
 
 ## run
-cd {{ result_dir }}
+cd "{{ result_dir }}"
 EXE="{{ target }}"
 INPUTS="{{ input_file }} {{ ncell_args }}"
 
@@ -39,7 +32,7 @@ INPUTS="{{ input_file }} {{ ncell_args }}"
 srun ${EXE} ${INPUT}
 
 {% else %}
-srun bash -c "
+srun {{ mpi_opt | default("", true) }} bash -c "
     case \$((SLURM_LOCALID)) in
       0) GPU=4;;
       1) GPU=5;;

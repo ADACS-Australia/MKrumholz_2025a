@@ -1,7 +1,9 @@
+import sys
 import yaml
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator, ValidationError
 from typing import Optional, List, Literal
+import re
 
 from hpc_performance_testing.utils import validate_path, backup_existing_file, get_lowercase_str
 from hpc_performance_testing.types import MemSize
@@ -73,6 +75,7 @@ class JobSettings(BaseModel):
     jobfs_per_node: Optional[MemSize] = None
     partition: Optional[str] = None
     account: Optional[str] = None
+    mpi_opt: Optional[str] = None
 
     @field_validator("mem_per_cpu", "mem_per_node", "jobfs_per_node", mode="before")
     @classmethod
@@ -80,6 +83,17 @@ class JobSettings(BaseModel):
         if v is None:
             return v
         return v if isinstance(v, MemSize) else MemSize(v)
+
+    @field_validator("mpi_opt", mode="after")
+    @classmethod
+    def validate_no_np(cls, v):
+        # breakpoint()
+        if v and re.search(r'(?<!\S)-np(?:\s*\d+)?(?!\S)', v):
+            raise ValueError(
+                "'-np' should not be included in mpi_opt. "
+                "The number of processes is controlled by the 'core' field or scheduler options."
+            )
+        return v
     
     model_config = ConfigDict(
         extra="forbid", # allow custom job options
@@ -175,7 +189,15 @@ def convert_non_str_to_str(obj):
 def load_config(file: str) -> FullConfig:
     with open(file) as f:
         raw_config = yaml.safe_load(f)
-    config = FullConfig(**raw_config)
+    try:
+        config = FullConfig(**raw_config)
+    except ValidationError as e:
+        for i, err in enumerate(e.errors(), 1):
+            loc = ".".join(map(str, err.get("loc", ())))
+            msg = err.get("msg", "Invalid value")
+            val = err.get("input", None)
+            logger.error(f"[{i}/{e.error_count()}] {loc}: {msg} (input={val!r})")
+        raise sys.exit(2)
    
     return config
 
