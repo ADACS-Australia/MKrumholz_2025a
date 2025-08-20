@@ -7,6 +7,11 @@
 #PBS -P jh2
 {% endif %}
 
+
+# merge stdout and stderr to stdout
+#PBS -j oe
+#PBS -o {{ result_dir }}
+
 {% if partition %}
 #PBS -q {{ partition }}
 {% else %}
