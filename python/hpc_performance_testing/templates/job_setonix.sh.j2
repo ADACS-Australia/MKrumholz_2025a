@@ -26,10 +26,10 @@ export MPICH_OFI_NIC_POLICY=NUMA
 ## run
 cd "{{ result_dir }}"
 EXE="{{ target }}"
-INPUTS="{{ input_file }} {{ ncell_args }}"
+INPUTS="{{ input_file }}" {{ ncell_args }}
 
 {% if ntasks_per_node == 1 %}
-srun ${EXE} ${INPUT}
+srun ${EXE} ${INPUTS}
 
 {% else %}
 srun {{ mpi_opt | default("", true) }} bash -c "

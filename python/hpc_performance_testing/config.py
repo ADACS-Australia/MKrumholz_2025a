@@ -102,8 +102,8 @@ class JobSettings(BaseModel):
 
 class ScalingConfig(BaseModel):
     strategy: Literal["weak_3d"]
-    min_cores: Optional[int] = None
-    max_cores: int
+    min_cores: Optional[int] = Field(default=None, gt=0)
+    max_cores: int = Field(gt=0)
 
     @field_validator("strategy", mode="before")
     @classmethod
@@ -114,6 +114,14 @@ class ScalingConfig(BaseModel):
     @classmethod
     def default_min_cores(cls, v):
         return 1 if v is None else v
+    
+    @model_validator(mode="after")
+    def check_core_range(self):
+        if self.max_cores < self.min_cores:
+            raise ValueError(
+                f"max_cores ({self.max_cores}) must be >= min_cores ({self.min_cores})"
+            )
+        return self
     
     model_config = ConfigDict(
         extra="forbid"
