@@ -225,9 +225,9 @@ def write_test_instance_meta(config: FullConfig, test_instance_path: Path | str,
 
     metadata_path = out_dir / "test_instance.yaml"
 
-    # Backup old file if exists
+    # only one test instance is allowed to run at a time in the same working dir
     if metadata_path.exists():
-        backup_existing_file(metadata_path)
+        raise FileExistsError(f"File 'test_instance.yaml' already exists in {out_dir}.")
 
     # Merge with runtime metadata
     config_cpy["runtime"] = {
