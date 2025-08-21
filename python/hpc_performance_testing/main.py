@@ -1,6 +1,7 @@
 from hpc_performance_testing.config import load_config, load_yaml
 from hpc_performance_testing.submit import JobCreator
 from hpc_performance_testing.extract import JobResultExtractor, JobStatusChecker
+from hpc_performance_testing.cleanup import TestInstanceCleanup
 
 def submit_jobs(config_file):
     config = load_config(config_file)
@@ -19,13 +20,16 @@ def extract_results(output_config_file):
     result = JobResultExtractor(config)
     result.get_job_results()
 
-    # merge job and results dataframe
-
+def cleanup(scenario="resubmit"): # allowed actions: resubmit, finished, delete_all
+    cleanup = TestInstanceCleanup()
+    res = cleanup.apply(scenario)
+    print(res)
 
 
 
 if __name__ == "__main__":
     # submit_jobs("config_nt.yaml")
     # submit_jobs("config.yaml")
-    status = check_jobs("test_instance.yaml")
+    # status = check_jobs("test_instance.yaml")
     # extract_results("test_instance.yaml")
+    cleanup()
