@@ -7,6 +7,7 @@ license = "MIT-expat"
 readme = "README.md"
 packages = [
     { include = "hpc_performance_testing", from = "python" },
+    { include = "cli"}
 ]
 
 include = [
@@ -59,6 +60,9 @@ pythonpath = "./python" # relative to root directory
 #   $ pytest -m marker_name
 #
 #markers = [ "marker_name: A short description of the marker" ]
+
+[tool.poetry.scripts]
+hptest = "cli.pipeline:main"
 
 [tool.mypy]
 ignore_missing_imports = true
