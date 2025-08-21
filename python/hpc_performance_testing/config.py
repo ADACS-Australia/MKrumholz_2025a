@@ -209,17 +209,16 @@ def load_config(file: str) -> FullConfig:
    
     return config
 
-def load_yaml(file: str) -> dict:
+def load_yaml(file: str|Path) -> dict:
     with open(file) as f:
         data = yaml.safe_load(f)
     return data
 
-def write_test_instance_meta(config: FullConfig, test_instance_path: Path | str, out_dir: Path = None):
+def write_test_instance_meta(config: FullConfig, test_instance_path: Path | str):
     config_cpy = config.model_dump()
     test_instance_path = validate_path(test_instance_path)
 
-    if out_dir is None:
-        out_dir = Path.cwd()
+    # write out in the current directory
     out_dir = validate_path(Path(out_dir))
     
 
