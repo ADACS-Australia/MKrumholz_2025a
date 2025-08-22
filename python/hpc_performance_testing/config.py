@@ -218,10 +218,8 @@ def write_test_instance_meta(config: FullConfig, test_instance_path: Path | str)
     config_cpy = config.model_dump()
     test_instance_path = validate_path(test_instance_path)
 
-    # write out in the current directory
-    out_dir = validate_path(Path(out_dir))
-    
-
+    # write out in the current directory 
+    out_dir = Path.cwd()
     metadata_path = out_dir / "test_instance.yaml"
 
     # only one test instance is allowed to run at a time in the same working dir
