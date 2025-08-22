@@ -26,7 +26,7 @@ export MPICH_OFI_NIC_POLICY=NUMA
 ## run
 cd "{{ result_dir }}"
 EXE="{{ target }}"
-INPUTS="{{ input_file }}" {{ ncell_args }}
+INPUTS="{{ input_file }}" 
 
 {% if ntasks_per_node == 1 %}
 srun ${EXE} ${INPUTS}
@@ -44,6 +44,6 @@ srun {{ mpi_opt | default("", true) }} bash -c "
       7) GPU=1;;
     esac
     export ROCR_VISIBLE_DEVICES=\$((GPU));
-    ${EXE} ${INPUTS}"
+    ${EXE} ${INPUTS}" {{ ncell_args }}
 
 {% endif %}
