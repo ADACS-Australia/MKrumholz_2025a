@@ -109,7 +109,7 @@ Global job defaults applied to all tests (can be overridden per test via `job_se
 | `jobfs_per_node`  | no       | str  | cluster default | Job filesystem scratch space per node. **Need in Gadi jobs only**.     |
 | `partition`       | no       | str  | cluster default | Partition/queue to submit jobs into.         |
 | `account`         | no       | str  | user default    | Project or account to charge compute time.   |
-| `mpi_opt`         | no       | str  | –               | Extra MPI options passed to `srun`/`mpirun`. |
+| `mpi_opt`         | no       | str  | –               | Extra MPI options passed to `srun`/`mpirun`. **Note:** `-np` is not supported; the number of processes is determined by job directives. |
 
 
 ---
@@ -296,4 +296,5 @@ To start a new test run, cleanup is required. Three scenarios are supported:
 
 3. **delete_all**:
 
-    Delete all the files generated in the current test run. 
+    Used to completely remove a test run.  
+   * Delete `test_instance.yaml`, `runtime_err.log`, and the entire test instance folder (including logs, results, build, and outputs).  
