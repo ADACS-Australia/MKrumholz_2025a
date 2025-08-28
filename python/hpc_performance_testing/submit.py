@@ -65,7 +65,7 @@ class CodeBuilder:
             f.write(re_build)
         logger.info("✅ Build script generated: build_all.sh")
         # Run the build script
-        run_and_log_subprocess([self.test_instance.config.hpc.shell, build_file], logger=logger, batch_size=1)
+        # run_and_log_subprocess([self.test_instance.config.hpc.shell, build_file], logger=logger, batch_size=1)
         logger.info("Finish building the tests.")
 
 
@@ -153,7 +153,7 @@ class JobScheduler(ABC):
         # test specific vars
         test_var = {
             "name": test_item.name,
-            "target": str(self.test_instance.repo_dir/"build/src/problems"/test_item.target),
+            "target": str(self.test_instance.repo_dir/f"build_{test_item.name}/src/problems"/test_item.target),
         
         }
         
@@ -229,8 +229,8 @@ class JobScheduler(ABC):
                 logger.info(f"✅ Job script generated: {job_name}")
 
                 # Submit job using scheduler-specific method
-                job_id = self.submit_job(job_name)
-                # job_id = 1
+                # job_id = self.submit_job(job_name)
+                job_id = 1
                 # Record job information
                 output_params = {
                     "job_id": job_id,
@@ -408,7 +408,7 @@ class JobCreator:
         self.generate_and_submit_jobs()
 
 if __name__ == "__main__":
-    config = load_config("config_gadi.yaml")
+    config = load_config("config.yaml")
     # breakpoint()
     job_creator = JobCreator(config)
     job_creator.run_full_pipeline()
