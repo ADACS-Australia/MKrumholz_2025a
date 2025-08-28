@@ -14,9 +14,11 @@ git clone --recursive https://github.com/quokka-astro/quokka.git
 
 # Build the tests
 cd quokka
-mkdir -p build
-cd build
+
 {% for test in tests %}
+mkdir -p build_{{ test.name}}
+cd build_{{test.name}}
 cmake --fresh .. -G Ninja {{ test.cmake_cache | join(' ') }} {{ gpu_build_flag }}
 ninja -j4 {{ test.name }}
+cd ..
 {% endfor %}
