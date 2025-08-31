@@ -63,9 +63,14 @@ class CodeBuilder:
         build_file = self.test_instance.path/"build_all.sh"
         with open(build_file, "w") as f:
             f.write(re_build)
+        # Make the build script executable
+        import os
+        os.chmod(build_file, 0o755)
         logger.info("✅ Build script generated: build_all.sh")
         # Run the build script
-        # run_and_log_subprocess([self.test_instance.config.hpc.shell, build_file], logger=logger, batch_size=1)
+        logger.info("Running build script...")
+        from hpc_performance_testing.logger import run_and_log_subprocess
+        run_and_log_subprocess([self.test_instance.config.hpc.shell, str(build_file)], logger=logger, batch_size=1)
         logger.info("Finish building the tests.")
 
 
