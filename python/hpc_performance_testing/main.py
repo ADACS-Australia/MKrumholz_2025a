@@ -4,9 +4,17 @@ from hpc_performance_testing.extract import JobResultExtractor, JobStatusChecker
 from hpc_performance_testing.cleanup import TestInstanceCleanup
 
 def submit_jobs(config_file):
-    config = load_config(config_file)
-    job_creator = JobCreator(config)
-    job_creator.run_full_pipeline()
+    from hpc_performance_testing.logger import LoggerManager
+    logger = LoggerManager.get_logger()
+    
+    try:
+        config = load_config(config_file)
+        job_creator = JobCreator(config)
+        job_creator.run_full_pipeline()
+        logger.info("Job submission completed successfully")
+    except Exception as e:
+        logger.error(f"Job submission failed: {str(e)}")
+        raise
 
 def check_jobs(test_instance_config_file):
     config = load_yaml(test_instance_config_file)
