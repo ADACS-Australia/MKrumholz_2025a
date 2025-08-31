@@ -68,12 +68,13 @@ class JobOutputParser:
         match = table_regex.search(text)
 
         if not match:
+            #raise RuntimeError("Table block not found with full table structure.")
             print("Table block not found with full table structure.")
             return None
-        
+
         header = match.group(1).strip()
         data_block = match.group(2).strip()
-        
+
         # Combine header and data for read_fwf
         table_text = header + "\n" + data_block
         try:
