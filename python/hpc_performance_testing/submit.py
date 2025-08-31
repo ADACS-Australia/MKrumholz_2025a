@@ -65,7 +65,7 @@ class CodeBuilder:
             f.write(re_build)
         logger.info("✅ Build script generated: build_all.sh")
         # Run the build script
-        # run_and_log_subprocess([self.test_instance.config.hpc.shell, build_file], logger=logger, batch_size=1)
+        run_and_log_subprocess([self.test_instance.config.hpc.shell, build_file], logger=logger, batch_size=1)
         logger.info("Finish building the tests.")
 
 
@@ -261,8 +261,8 @@ class JobScheduler(ABC):
                 logger.info(f"✅ Job script generated: {job_name}")
 
                 # Submit job using scheduler-specific method
-                # job_id = self.submit_job(job_name)
-                job_id = 1
+                job_id = self.submit_job(job_name)
+                # job_id = 1
                 # Record job information
                 output_params = {
                     "job_id": job_id,
