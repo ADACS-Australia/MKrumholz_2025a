@@ -29,9 +29,10 @@ class TestInstance:
 class CodeBuilder:
     BUILD_TEMPLATE = load_template("build_all.sh.j2")
 
-    def __init__(self, test_instance: TestInstance):
+    def __init__(self, test_instance: TestInstance, dry_run=False):
         self.test_instance = test_instance
         self._add_gpu_build_dflag()
+        self.dry_run = dry_run
 
     def _add_gpu_build_dflag(self):
         gpu_build = self.test_instance.config.hpc.gpu_build
@@ -65,16 +66,18 @@ class CodeBuilder:
             f.write(re_build)
         logger.info("✅ Build script generated: build_all.sh")
         # Run the build script
-        run_and_log_subprocess([self.test_instance.config.hpc.shell, build_file], logger=logger, batch_size=1)
-        logger.info("Finish building the tests.")
+        if not self.dry_run:
+            run_and_log_subprocess([self.test_instance.config.hpc.shell, build_file], logger=logger, batch_size=1)
+            logger.info("Finish building the tests.")
 
 
 class JobScheduler(ABC):
     """Abstract base class for different HPC job schedulers"""
     
-    def __init__(self, test_instance: TestInstance, template_file: str):
+    def __init__(self, test_instance: TestInstance, template_file: str, dry_run=False):
         self.test_instance = test_instance
         self.template = self._load_template(template_file)
+        self.dry_run = dry_run
         
     @abstractmethod
     def get_job_id(self, submit_stdout: str) -> str:
@@ -261,8 +264,12 @@ class JobScheduler(ABC):
                 logger.info(f"✅ Job script generated: {job_name}")
 
                 # Submit job using scheduler-specific method
-                job_id = self.submit_job(job_name)
-                # job_id = 1
+                if self.dry_run:
+                    job_id = 1
+                    logger.info(f"Dry run: jobs are not submitted; mock job_id is provided")
+                else:
+                    job_id = self.submit_job(job_name)
+
                 # Record job information
                 output_params = {
                     "job_id": job_id,
@@ -363,11 +370,11 @@ class PbsScheduler(JobScheduler):
 class JobCreator:
     """Main orchestrator class that uses composition"""
     
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, dry_run=False):
         self.config = config
         self._prepare()
-        self.code_builder = CodeBuilder(self.test_instance)
-        self.scheduler = self._create_scheduler()
+        self.code_builder = CodeBuilder(self.test_instance, dry_run=dry_run)
+        self.scheduler = self._create_scheduler(dry_run=dry_run)
     
     def _set_timestamp(self):
         return datetime.today().strftime("%Y%m%d%H%M%S")
@@ -408,7 +415,7 @@ class JobCreator:
         # add pipeline log handler
         LoggerManager.add_pipeline_log(self.test_instance.path)
 
-    def _create_scheduler(self) -> JobScheduler:
+    def _create_scheduler(self, dry_run=False) -> JobScheduler:
         """Factory method to create appropriate scheduler based on config"""
         # Read HPC type from config, with default fallback
         hpc = self.config.hpc.cluster
@@ -424,7 +431,7 @@ class JobCreator:
         if hpc not in schedulers.keys():
             raise ValueError(f"Unsupported HPC: {hpc}")
         scheduler, temp_file = schedulers[hpc]
-        return scheduler(self.test_instance, temp_file)   
+        return scheduler(self.test_instance, temp_file, dry_run=dry_run)   
     
     def build_tests(self) -> None:
         """Build all tests"""
@@ -442,6 +449,6 @@ class JobCreator:
 if __name__ == "__main__":
     config = load_config("config.yaml")
     # breakpoint()
-    job_creator = JobCreator(config)
+    job_creator = JobCreator(config, dry_run=True)
     job_creator.run_full_pipeline()
     
