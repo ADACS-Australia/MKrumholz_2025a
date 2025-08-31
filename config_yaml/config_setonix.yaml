@@ -22,14 +22,71 @@ scaling:
 tests:
   - name: test_hydro3d_blast
     target: HydroBlast3D/test_hydro3d_blast
-    input_file: blast_32.in
+    input_file: blast_unigrid_128_regression.in
     cmake_cache:
       - -DCMAKE_BUILD_TYPE=Release 
       - -DQUOKKA_PYTHON=OFF 
       - -DAMReX_SPACEDIM=3
     job_settings:
-      walltime: 00:10:00
-      mem_per_node: 4G
+      walltime: 00:30:00
+      mem_per_node: 10G
+  
+  - name: test_radhydro3d_shell
+    target: RadhydroShell/test_radhydro3d_shell
+    input_file: radhydro_shell_regression.in
+    link_file: ./initial_conditions.txt
+    cmake_cache: 
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DQUOKKA_PYTHON=OFF 
+      - -DAMReX_SPACEDIM=3
+    job_settings:
+      walltime: 00:30:00
+      mem_per_node: 10G
+
+  - name: shock_cloud
+    target: ShockCloud/shock_cloud
+    input_file: ShockCloud_64_regression.in
+    link_file: CloudyData_UVB=HM2012_resampled.h5
+    cmake_cache:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DQUOKKA_PYTHON=OFF 
+      - -DAMReX_SPACEDIM=3
+    job_settings:
+      walltime: 00:30:00
+      mem_per_node: 10G
+
+  - name: random_blast
+    target: RandomBlast/random_blast
+    input_file: RandomBlast_regression.in
+    link_file: CloudyData_UVB=HM2012.h5
+    cmake_cache:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DQUOKKA_PYTHON=OFF 
+      - -DAMReX_SPACEDIM=3
+    job_settings:
+      walltime: 00:30:00
+      mem_per_node: 10G
+
+  - name: disk_galaxy
+    target: DiskGalaxy/disk_galaxy
+    input_file: DiskGalaxy.in
+    link_file:
+      - CloudyData_UVB=HM2012_resampled.h5
+      - vcirc.dat
+      - AgoraGalaxy_particles_LOW.txt
+    cmake_cache:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DQUOKKA_PYTHON=OFF 
+      - -DAMReX_SPACEDIM=3
+    job_settings:
+      walltime: 01:30:00
+      mem_per_node: 10G
+
+
+
+  
+
+ 
     
 
  
