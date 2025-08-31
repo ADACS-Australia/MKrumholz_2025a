@@ -9,7 +9,7 @@ import re
 from datetime import datetime
 from jinja2 import Template, StrictUndefined
 
-from hpc_performance_testing.utils import load_template
+from hpc_performance_testing.utils import load_template, validate_path
 from hpc_performance_testing.config import write_test_instance_meta, load_config, TestItem, FullConfig
 from hpc_performance_testing.logger import LoggerManager, run_and_log_subprocess
 from hpc_performance_testing.strategy import ScalingStrategy
@@ -170,7 +170,36 @@ class JobScheduler(ABC):
        
         return {**base_var, **extra_var} if extra_var else base_var
         
+    def _create_symlink_file(self, target_file_path: Path, link_path: Path):
+        test_input_base = Path(self.test_instance.config.paths.test_inputs).resolve()
+        target_file_subpath = target_file_path.relative_to(test_input_base)
+        link_file_path = link_path/target_file_subpath
+        link_file_path.parent.mkdir(parents=True, exist_ok=True)
+        if not link_file_path.exists():
+            link_file_path.symlink_to(target_file_path)
 
+    def _validate_link_file(self, link_files, run_path):
+        #todo: prevent duplicated link_files 
+        if link_files:
+            for lf in link_files:
+                # validate for absolute path
+                if Path(lf).is_absolute():
+                    validate_path(lf)
+                    continue
+                
+                test_inputs_base = Path(self.test_instance.config.paths.test_inputs).resolve()
+                run_path = Path(run_path)
+                
+                _candidate_in_test_inputs = (test_inputs_base/lf).resolve(strict=False)
+                if _candidate_in_test_inputs.is_relative_to(test_inputs_base):
+                    validate_path(_candidate_in_test_inputs)
+                    self._create_symlink_file(_candidate_in_test_inputs, run_path)
+                    continue
+                
+                validate_path(run_path/lf)
+
+                
+        
     def render_single_job_script(self, test_item: TestItem, **job_settings) -> str:
                 
         # Get template variable value
@@ -202,16 +231,19 @@ class JobScheduler(ABC):
 
                 # create a directory for each test job
                 test_folder = f"{test.name}_n{core}"
-                result_dir = str(self.test_instance.result_dir_base / test_folder)
+                result_dir = self.test_instance.result_dir_base / test_folder
                 os.makedirs(result_dir, exist_ok=True)
                 
+                if test.link_file:
+                    self._validate_link_file(test.link_file, result_dir)
+
                 # Prepare job parameters
                 _job_params = {
                     'core': core,
                     'node': node,
                     'input_file': input_file,
                     'ncell_params': arg_value,                    
-                    'result_dir': result_dir,
+                    'result_dir': str(result_dir),
                 }
 
                 job_settings.update(_job_params)
@@ -223,7 +255,7 @@ class JobScheduler(ABC):
                 # Generate job script using scheduler-specific logic
                 rendered = self.render_single_job_script(test, **job_settings)
                 
-                job_name = result_dir + f"/{test.name}_n{core}.sh"
+                job_name = result_dir/f"{test.name}_n{core}.sh"
                 with open(job_name, "w") as f:
                     f.write(rendered)
                 logger.info(f"✅ Job script generated: {job_name}")

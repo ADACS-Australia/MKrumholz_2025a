@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, ConfigDict, field_validator, model_valida
 from typing import Optional, List, Literal
 import re
 
-from hpc_performance_testing.utils import validate_path, backup_existing_file, get_lowercase_str
+from hpc_performance_testing.utils import expand_path, validate_path, backup_existing_file, get_lowercase_str
 from hpc_performance_testing.types import MemSize
 from hpc_performance_testing.logger import LoggerManager
 
@@ -131,9 +131,25 @@ class TestItem(BaseModel):
     name: str
     target: str
     input_file: str
+    link_file: str | list | None = None
     cmake_cache: Optional[List[str]] = Field(default_factory=list)
     job_settings: Optional[JobSettings] = Field(default=None)
 
+    @field_validator("link_file", mode="before")
+    @classmethod
+    def _normalize_link_file(cls, v):
+        # None or empty → None
+        if v is None or v == "":
+            return None
+        
+        # single value → [str]
+        if isinstance(v, str):
+            return [expand_path(v)]
+        
+        # list → list[str]
+        if isinstance(v, list):
+            return [expand_path(x) for x in v if str(x)] or None
+            
     model_config = ConfigDict(
         extra="forbid"  # allow flexible test configs
     )
@@ -154,6 +170,7 @@ class FullConfig(BaseModel):
                 raise FileNotFoundError(
                     f"Input file '{test.input_file}' not found in: {test_inputs}"
                 )
+                
         return self
     
     @model_validator(mode="after")
