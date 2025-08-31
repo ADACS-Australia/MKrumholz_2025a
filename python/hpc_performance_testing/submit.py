@@ -234,8 +234,7 @@ class JobScheduler(ABC):
                 logger.info(f"✅ Job script generated: {job_name}")
 
                 # Submit job using scheduler-specific method
-                # job_id = self.submit_job(job_name)
-                job_id = 1
+                job_id = self.submit_job(job_name)
                 # Record job information
                 output_params = {
                     "job_id": job_id,
