@@ -222,9 +222,24 @@ def write_test_instance_meta(config: FullConfig, test_instance_path: Path | str)
     out_dir = Path.cwd()
     metadata_path = out_dir / "test_instance.yaml"
 
-    # only one test instance is allowed to run at a time in the same working dir
+    # If test_instance.yaml exists, back it up with its original timestamp
     if metadata_path.exists():
-        raise FileExistsError(f"File 'test_instance.yaml' already exists in {out_dir}.")
+        # Read the existing test_instance.yaml to get its timestamp
+        with metadata_path.open("r") as f:
+            existing_config = yaml.safe_load(f)
+        
+        # Get timestamp from the runtime section
+        if "runtime" in existing_config and "timestamp" in existing_config["runtime"]:
+            timestamp = existing_config["runtime"]["timestamp"]
+        else:
+            # Fallback if no timestamp found - use current time
+            import datetime
+            timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        
+        # Backup with the original timestamp
+        backup_path = out_dir / f"test_instance_{timestamp}.yaml"
+        metadata_path.rename(backup_path)
+        logger.info(f"Backed up existing test_instance.yaml to {backup_path}")
 
     # Merge with runtime metadata
     config_cpy["runtime"] = {
