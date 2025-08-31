@@ -92,7 +92,7 @@ class JobOutputParser:
         list_dict = df.to_dict(orient="records")
         n_entry = len(list_dict)
         assert n_entry == 1, f"There should be just one entry of the same function name in the table. Found {n_entry}."
-        return list_dict[0]
+        return list_dict[0] or {}
                
     def read_tinyprofiler_function_stats(self, text: str, table_name: str, function_name: str, column_name : str | list | None = None) -> dict | None:
         assert table_name in self.profile_table.keys(), f"The table {table_name} doesn't exist or its regex is not added. Available tables: {self.profile_table.keys()}"
@@ -102,7 +102,7 @@ class JobOutputParser:
         df = self._extract_table(text, table_regex)
 
         if df is None or df.empty:
-            return None
+            return {}
 
         if "Name" not in df.columns:
             raise ValueError("The column `Name` does not exist! Check the tiny profiler output.")
