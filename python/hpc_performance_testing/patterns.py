@@ -4,11 +4,11 @@ import re
 JOB_OUTPUT_NAME = re.compile(r"_JobID_(?P<job_id>[a-zA-Z0-9_\-]+)\.out$")
 
 # patterns of amrex/quokka output
-ZONE_UPDATE_RATE = re.compile(r'(\d+\.?\d*)\s+μs/zone-update\s+\[(\d+\.?\d*)\s+Mupdates/s\]')
+ZONE_UPDATE_RATE = re.compile(r'(?P<microseconds_per_update>\d+\.?\d*)\s+μs/zone-update\s+\[(?P<megaupdates_per_second>\d+\.?\d*)\s+Mupdates/s\]')
 
-N_MPI_PROCESS = re.compile(r'MPI initialized with (\d+) MPI processes') 
+N_MPI_PROCESS = re.compile(r'MPI initialized with (?P<n_mpi_process>\d+) MPI processes') 
 
-ELPASE_TIME = re.compile(r'elapsed time:\s*(.*?)\s*seconds\.')
+ELAPSED_TIME = re.compile(r'elapsed time:\s*(?P<elapsed_time>.*?)\s*seconds\.')
 
 # table patterns
 _TABLE_REGEX_TEMPLATE = r"-+\n({header_pattern})\n-+\n(.*?)(?=\n-+)"

@@ -37,28 +37,32 @@ class JobOutputParser:
         self._extract_region_blocks()
 
 
-    def parse_lines(self, text: str, pattern: re.Pattern | str, keys: list[str] | None = None):
+    def parse_lines(self, text: str, pattern: re.Pattern | str):
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
+        
+        n_groups = pattern.groups
+        if n_groups == 0:
+            raise ValueError("Regex has no capturing groups; expected at least one.")
+        
+        groupdict_rev = {idx: name for name, idx in pattern.groupindex.items()}
+        keys = [groupdict_rev.get(i, f"group{i}") for i in range(1, n_groups + 1)]
+        
         match = pattern.search(text)
+
         if not match:
-            return None
+            if n_groups == 1:
+                return None
+            return {key: None for key in keys}
+        
+        # if match
+        values = match.groups()
 
-        values = list(match.groups())
-
-        if len(values) == 1:
+        if n_groups == 1:
             return values[0]
         
-        if not keys:
-            keys = [str(i) for i in range(len(values))]
-            #todo: raise warnings
-            # warnings.warn("No keys provided — using default keys: " + str(keys), stacklevel=2)
-        
-        if len(keys) != len(values):
-            raise ValueError("The number of keys is not equal to the number of groups.")
         return dict(zip(keys, values))
-        
-
+          
 
     def _extract_table(self, text: str, table_regex: re.Pattern | str):
         if isinstance(table_regex, str):
@@ -141,12 +145,10 @@ class JobOutput:
     
     @property
     def zone_update(self):
-        return self.parser.parse_lines(self.parser.content, ZONE_UPDATE_RATE, 
-                                        keys=["microseconds_per_update", 
-                                              "megaupdates_per_second"])
+        return self.parser.parse_lines(self.parser.content, ZONE_UPDATE_RATE)
     @property
     def elapse_time(self):
-        return self.parser.parse_lines(self.parser.content, ELPASE_TIME)
+        return self.parser.parse_lines(self.parser.content, ELAPSED_TIME)
     
     @property
     def boundary_condition_inc_main(self):
