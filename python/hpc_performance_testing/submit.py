@@ -79,7 +79,6 @@ class JobScheduler(ABC):
         self.test_instance = test_instance
         self.template = self._load_template(template_file)
         self.dry_run = dry_run
-        self._validate_runtime_path()
         
     @abstractmethod
     def get_job_id(self, submit_stdout: str) -> str:
@@ -216,6 +215,8 @@ class JobScheduler(ABC):
     
     def generate_all_job_scripts(self):
         """Generate all job scripts for all tests - shared logic across schedulers"""
+        # validate input and link root path
+        self._validate_runtime_path()
         
         # get scaling strategy
         scaling_func, min_cores, max_cores = self._get_scaling_strategy()
