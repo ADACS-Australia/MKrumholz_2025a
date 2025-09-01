@@ -2,7 +2,7 @@ import sys
 import yaml
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator, ValidationError
-from typing import Optional, List, Literal
+from typing import Literal
 import re
 
 from hpc_performance_testing.utils import expand_path, validate_path, backup_existing_file, get_lowercase_str
@@ -226,32 +226,3 @@ def load_yaml(file: str|Path) -> dict:
     with open(file) as f:
         data = yaml.safe_load(f)
     return data
-
-def write_test_instance_meta(config: FullConfig, test_instance_path: Path | str):
-    config_cpy = config.model_dump()
-    test_instance_path = validate_path(test_instance_path)
-
-    # write out in the current directory 
-    out_dir = Path.cwd()
-    metadata_path = out_dir / "test_instance.yaml"
-
-    # only one test instance is allowed to run at a time in the same working dir
-    if metadata_path.exists():
-        raise FileExistsError(f"File 'test_instance.yaml' already exists in {out_dir}.")
-
-    # Merge with runtime metadata
-    config_cpy["runtime"] = {
-        "timestamp": test_instance_path.name ,
-        "test_instance": str(test_instance_path),
-
-         
-    }
-
-    # Convert Path objects to str
-    clean_config = convert_non_str_to_str(config_cpy)
-    
-    # Write new metadata
-    with metadata_path.open("w") as f:
-        yaml.safe_dump(clean_config, f, default_flow_style=False, sort_keys=False)
-
-    logger.info(f"run_metadata.yaml written to {metadata_path}")

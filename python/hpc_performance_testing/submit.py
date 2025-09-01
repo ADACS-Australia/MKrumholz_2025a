@@ -8,9 +8,10 @@ import subprocess
 import re
 from datetime import datetime
 from jinja2 import Template, StrictUndefined
+import yaml
 
 from hpc_performance_testing.utils import load_template, validate_path
-from hpc_performance_testing.config import write_test_instance_meta, load_config, TestItem, FullConfig
+from hpc_performance_testing.config import load_config, TestItem, FullConfig, convert_non_str_to_str
 from hpc_performance_testing.logger import LoggerManager, run_and_log_subprocess
 from hpc_performance_testing.strategy import ScalingStrategy
 from hpc_performance_testing.output import Job_FIELD, JobDataFrame
@@ -184,6 +185,16 @@ class JobScheduler(ABC):
         
         if not link_file_path.exists():
             link_file_path.symlink_to(target_file_path)
+        else:
+            if link_file_path.is_symlink():
+                current_target = link_file_path.resolve()
+                expected_target = target_file_path.resolve()
+                if current_target != expected_target:
+                    raise ValueError(
+                        f"Symlink {link_file_path} already exists and points to "
+                        f"{current_target}, expected {expected_target}"
+                    )
+
 
     def _validate_link_file(self, link_files, run_path):
         #todo: prevent duplicated link_files 
@@ -364,6 +375,7 @@ class PbsScheduler(JobScheduler):
 
 class JobCreator:
     """Main orchestrator class that uses composition"""
+    TEST_INSTANCE_METAFILE = Path.cwd()/"test_instance.yaml"
     
     def __init__(self, config: dict, dry_run=False):
         self.config = config
@@ -402,17 +414,43 @@ class JobCreator:
 
     def _create_env_var(self, var: str, value):
         os.environ[var] = str(value)
+
+    def _ensure_metafile_absent(self):
+        if self.TEST_INSTANCE_METAFILE.exists():
+            raise FileExistsError(f"Test instance meta file '{self.TEST_INSTANCE_METAFILE}' already exists. \n"
+                                   "Move or delete it before starting a new run.")
+        
+    def _write_metafile(self):
+        config_cpy = self.config.model_dump()
+        test_instance_path = validate_path(self.test_instance.path)
+
+        # Merge with runtime metadata
+        config_cpy["runtime"] = {
+            "timestamp": test_instance_path.name ,
+            "test_instance": test_instance_path,
+        }
+        # Convert Path objects to str
+        clean_config = convert_non_str_to_str(config_cpy)
+        
+        # Write new metadata
+        with self.TEST_INSTANCE_METAFILE.open("w") as f:
+            yaml.safe_dump(clean_config, f, default_flow_style=False, sort_keys=False)
+
+        logger.info(f"Test instance meta file 'test_instance.yaml' is written to {Path.cwd()}")  
             
     def _prepare(self):
+        # ensure no pre-existing test_instance.yaml
+        self._ensure_metafile_absent()
+
         # create test instance
         self._create_test_instance()
 
         # add an environment var "QUOKKA"
         self._create_env_var("QUOKKA", self.test_instance.repo_dir)
 
-        # write test instance meta yaml file
-        write_test_instance_meta(self.config, self.test_instance.path)
-
+        # write test instance meta file
+        self._write_metafile()
+        
         # add pipeline log handler
         LoggerManager.add_pipeline_log(self.test_instance.path)
 
