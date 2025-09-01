@@ -53,11 +53,19 @@ class HPCConfig(BaseModel):
     )
 
 class PathsConfig(BaseModel):
-    working_dir: str
-    environment: str
+    working_dir: Path | None = None
+    environment: Path
     test_inputs: str
+    link_files_root: str
 
-    @field_validator("working_dir", "environment", "test_inputs", mode="after")
+    @field_validator("working_dir", mode="before")
+    @classmethod
+    def set_default_working_dir(cls, v):
+        if v is None:
+            return Path.cwd()
+        return v
+        
+    @field_validator("working_dir", "environment", mode="after")
     @classmethod
     def validate_paths(cls, v):
         return validate_path(v)
@@ -67,15 +75,15 @@ class PathsConfig(BaseModel):
     )
 
 class JobSettings(BaseModel):
-    ntasks_per_node: Optional[int] = None
-    cpus_per_task: Optional[int] = None
-    walltime: Optional[str] = None
-    mem_per_cpu: Optional[MemSize] = None
-    mem_per_node: Optional[MemSize] = None
-    jobfs_per_node: Optional[MemSize] = None
-    partition: Optional[str] = None
-    account: Optional[str] = None
-    mpi_opt: Optional[str] = None
+    ntasks_per_node: int | None = None
+    cpus_per_task: int | None = None
+    walltime: str | None = None
+    mem_per_cpu: MemSize | None = None
+    mem_per_node: MemSize | None = None
+    jobfs_per_node: MemSize | None = None
+    partition: str | None = None
+    account: str | None = None
+    mpi_opt: str | None = None
 
     @field_validator("mem_per_cpu", "mem_per_node", "jobfs_per_node", mode="before")
     @classmethod
@@ -102,7 +110,7 @@ class JobSettings(BaseModel):
 
 class ScalingConfig(BaseModel):
     strategy: Literal["weak_3d"]
-    min_cores: Optional[int] = Field(default=None, gt=0)
+    min_cores: int | None = Field(default=None, gt=0)
     max_cores: int = Field(gt=0)
 
     @field_validator("strategy", mode="before")
@@ -132,8 +140,8 @@ class TestItem(BaseModel):
     target: str
     input_file: str
     link_file: str | list | None = None
-    cmake_cache: Optional[List[str]] = Field(default_factory=list)
-    job_settings: Optional[JobSettings] = Field(default=None)
+    cmake_cache: list[str] | None = Field(default_factory=list)
+    job_settings: JobSettings | None  = Field(default=None)
 
     @field_validator("link_file", mode="before")
     @classmethod
@@ -144,11 +152,11 @@ class TestItem(BaseModel):
         
         # single value → [str]
         if isinstance(v, str):
-            return [expand_path(v)]
+            return [v]
         
         # list → list[str]
         if isinstance(v, list):
-            return [expand_path(x) for x in v if str(x)] or None
+            return v or None
             
     model_config = ConfigDict(
         extra="forbid"  # allow flexible test configs
@@ -159,19 +167,7 @@ class FullConfig(BaseModel):
     paths: PathsConfig
     global_job_settings: JobSettings
     scaling: ScalingConfig
-    tests: List[TestItem]
-
-    @model_validator(mode="after")
-    def validate_input_paths(self):
-        test_inputs = self.paths.test_inputs
-        for test in self.tests:
-            full_path = test_inputs / test.input_file
-            if not full_path.exists():
-                raise FileNotFoundError(
-                    f"Input file '{test.input_file}' not found in: {test_inputs}"
-                )
-                
-        return self
+    tests: list[TestItem]
     
     @model_validator(mode="after")
     def validate_job_settings(self):
@@ -247,6 +243,7 @@ def write_test_instance_meta(config: FullConfig, test_instance_path: Path | str)
     config_cpy["runtime"] = {
         "timestamp": test_instance_path.name ,
         "test_instance": str(test_instance_path),
+
          
     }
 

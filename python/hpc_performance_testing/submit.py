@@ -78,6 +78,7 @@ class JobScheduler(ABC):
         self.test_instance = test_instance
         self.template = self._load_template(template_file)
         self.dry_run = dry_run
+        self._validate_runtime_path()
         
     @abstractmethod
     def get_job_id(self, submit_stdout: str) -> str:
@@ -104,7 +105,7 @@ class JobScheduler(ABC):
         """Estimate number of nodes needed"""
         return (int(ncores) + int(core_per_node) - 1) // int(core_per_node)
     
-    def _read_ncell(self, input_file) -> list:
+    def _read_ncell(self, input_file: str | os.PathLike) -> list:
         with open(input_file) as f:
             content = f.read()
             pattern = r'amr\.n_cell\s*=\s*((?:\d+\s*)+)'
@@ -131,6 +132,10 @@ class JobScheduler(ABC):
         
         return strategies[scaling], min_cores, max_cores
     
+    def _validate_runtime_path(self):
+        self.test_inputs = validate_path(self.test_instance.config.paths.test_inputs)
+        self.link_files_root = validate_path(self.test_instance.config.paths.link_files_root)
+
     def _get_job_settings(self, test_item: TestItem):
         
         # get global job settings
@@ -174,10 +179,9 @@ class JobScheduler(ABC):
         return {**base_var, **extra_var} if extra_var else base_var
         
     def _create_symlink_file(self, target_file_path: Path, link_path: Path):
-        test_input_base = Path(self.test_instance.config.paths.test_inputs).resolve()
-        target_file_subpath = target_file_path.relative_to(test_input_base)
-        link_file_path = link_path/target_file_subpath
-        link_file_path.parent.mkdir(parents=True, exist_ok=True)
+        link_file_name = target_file_path.name
+        link_file_path = link_path/link_file_name
+        
         if not link_file_path.exists():
             link_file_path.symlink_to(target_file_path)
 
@@ -185,23 +189,12 @@ class JobScheduler(ABC):
         #todo: prevent duplicated link_files 
         if link_files:
             for lf in link_files:
-                # validate for absolute path
-                if Path(lf).is_absolute():
-                    validate_path(lf)
-                    continue
+                # validate link file path
+                lf = validate_path(self.link_files_root/lf)
                 
-                test_inputs_base = Path(self.test_instance.config.paths.test_inputs).resolve()
-                run_path = Path(run_path)
-                
-                _candidate_in_test_inputs = (test_inputs_base/lf).resolve(strict=False)
-                if _candidate_in_test_inputs.is_relative_to(test_inputs_base):
-                    validate_path(_candidate_in_test_inputs)
-                    self._create_symlink_file(_candidate_in_test_inputs, run_path)
-                    continue
-                
-                validate_path(run_path/lf)
-
-                
+                # create symlink run dir
+                self._create_symlink_file(lf, run_path)
+                               
         
     def render_single_job_script(self, test_item: TestItem, **job_settings) -> str:
                 
@@ -220,10 +213,12 @@ class JobScheduler(ABC):
         output = JobDataFrame(Job_FIELD)
         # breakpoint()
         for test in self.test_instance.config.tests:
-            input_file = str(self.test_instance.config.paths.test_inputs / test.input_file)
+            # validate input_file
+            input_file = validate_path(self.test_inputs / test.input_file)
+
             init_ncell = self._read_ncell(input_file)
             core_dict = scaling_func(init_ncell, min_cores, max_cores)
-            
+            # breakpoint()
             for core, arg_value in core_dict.items():
                 job_settings = self._get_job_settings(test)
                 # calculate the number of nodes needed
@@ -404,10 +399,16 @@ class JobCreator:
             repo_dir=repo_dir,
             config=self.config,
         )
-    
+
+    def _create_env_var(self, var: str, value):
+        os.environ[var] = str(value)
+            
     def _prepare(self):
         # create test instance
         self._create_test_instance()
+
+        # add an environment var "QUOKKA"
+        self._create_env_var("QUOKKA", self.test_instance.repo_dir)
 
         # write test instance meta yaml file
         write_test_instance_meta(self.config, self.test_instance.path)
