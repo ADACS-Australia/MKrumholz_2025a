@@ -6,8 +6,6 @@ import traceback
 import subprocess
 import uuid
 
-from hpc_performance_testing.utils import validate_path
-
 class LoggerManager:
     _logger = None
     _log_err_file = None
@@ -77,6 +75,7 @@ class LoggerManager:
     @classmethod
     def add_pipeline_log(cls, test_instance: Path):
         # validate test_instance path
+        from hpc_performance_testing.utils import validate_path
         test_instance = validate_path(test_instance)
                 
         pipline_log = test_instance/"perf_test.log"
