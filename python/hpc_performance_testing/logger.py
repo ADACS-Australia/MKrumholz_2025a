@@ -31,7 +31,7 @@ class LoggerManager:
         cls._log_err_file = log_dir/"runtime_err.log"
                
         err_fh = logging.FileHandler(cls._log_err_file, mode='a')
-        err_fh.setLevel(logging.WARNING)
+        err_fh.setLevel(logging.DEBUG)
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         err_fh.setFormatter(formatter)
         logger.addHandler(err_fh)
