@@ -6,6 +6,8 @@ import traceback
 import subprocess
 import uuid
 
+from hpc_performance_testing.utils import validate_path
+
 class LoggerManager:
     _logger = None
     _log_err_file = None
@@ -15,7 +17,7 @@ class LoggerManager:
     def init(cls, log_dir: Path | str = None, name: str = "perf_test"):
         # get logger
         logger = logging.getLogger(name)
-        logger.setLevel(logging.DEBUG) # handlers decide the level 
+        logger.setLevel(logging.WARNING) # handlers decide the level 
         logger.handlers.clear()
 
         # err log
@@ -74,8 +76,9 @@ class LoggerManager:
 
     @classmethod
     def add_pipeline_log(cls, test_instance: Path):
-        if not Path(test_instance).exists():
-            raise FileNotFoundError(f"Test instance {test_instance} doesn't exists!")
+        # validate test_instance path
+        test_instance = validate_path(test_instance)
+                
         pipline_log = test_instance/"perf_test.log"
         pipeline_fh = logging.FileHandler(pipline_log, mode='a')
         pipeline_fh.setLevel(logging.INFO)

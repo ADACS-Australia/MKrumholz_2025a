@@ -18,7 +18,7 @@ cd quokka
 {% for test in tests %}
 mkdir -p build_{{ test.name}}
 cd build_{{test.name}}
-cmake --fresh .. -G Ninja {{ test.cmake_cache | join(' ') }} {{ gpu_build_flag }}
+cmake .. -G Ninja {{ test.cmake_cache | join(' ') }} {{ gpu_build_flag }}
 ninja -j4 {{ test.name }}
 cd ..
 {% endfor %}

@@ -1,3 +1,4 @@
+import os
 import sys
 import yaml
 from pathlib import Path
@@ -207,7 +208,9 @@ def convert_non_str_to_str(obj):
         return obj
 
 # Load config with validation
-def load_config(file: str) -> FullConfig:
+def load_config(file: str|os.PathLike) -> FullConfig:
+    file = validate_path(file)
+
     with open(file) as f:
         raw_config = yaml.safe_load(f)
     try:
@@ -222,7 +225,8 @@ def load_config(file: str) -> FullConfig:
    
     return config
 
-def load_yaml(file: str|Path) -> dict:
+def load_yaml(file: str|os.PathLike) -> dict:
+    file = validate_path(file)
     with open(file) as f:
         data = yaml.safe_load(f)
     return data
