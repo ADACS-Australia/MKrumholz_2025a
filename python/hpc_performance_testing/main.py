@@ -1,12 +1,43 @@
-from hpc_performance_testing.config import load_config
+from hpc_performance_testing.config import load_config, load_yaml
 from hpc_performance_testing.submit import JobCreator
+from hpc_performance_testing.extract import JobResultExtractor, JobStatusChecker
+from hpc_performance_testing.cleanup import TestInstanceCleanup
 
 def submit_jobs(config_file):
-    config = load_config(config_file)
-    job = JobCreator(config)
-    # job.generate_build_file()
-    job.generate_job_scripts()
+    from hpc_performance_testing.logger import LoggerManager
+    logger = LoggerManager.get_logger()
+    
+    try:
+        config = load_config(config_file)
+        job_creator = JobCreator(config)
+        job_creator.run_full_pipeline()
+        logger.info("Job submission completed successfully")
+    except Exception as e:
+        logger.error(f"Job submission failed: {str(e)}")
+        raise
+
+def check_jobs(test_instance_config_file):
+    config = load_yaml(test_instance_config_file)
+    checker = JobStatusChecker(config)
+    # breakpoint()
+    status = checker.check_jobs()
+    return status
+
+def extract_results(output_config_file):
+    config = load_yaml(output_config_file)
+    result = JobResultExtractor(config)
+    result.get_job_results()
+
+def cleanup(scenario="resubmit"): # allowed actions: resubmit, finished, delete_all
+    cleanup = TestInstanceCleanup()
+    res = cleanup.apply(scenario)
+    print(res)
+
 
 
 if __name__ == "__main__":
-    submit_jobs("config.yaml")
+    # submit_jobs("config_nt.yaml")
+    # submit_jobs("config.yaml")
+    # status = check_jobs("test_instance.yaml")
+    # extract_results("test_instance.yaml")
+    cleanup()

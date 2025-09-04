@@ -1,11 +1,9 @@
 #!{{ shell }}
 
-# Create a working directory
-mkdir -p {{ working_dir }}
-cd {{ working_dir }}
+# exit on error
+set -eo pipefail
 
-# Create a test directory
-mkdir -p {{ test_instance }}
+# access to the test instance directory
 cd {{ test_instance }}
 
 # Load necessary modules and activate the Python virtual environment
@@ -16,9 +14,11 @@ git clone --recursive https://github.com/quokka-astro/quokka.git
 
 # Build the tests
 cd quokka
-mkdir -p build
-cd build
+
 {% for test in tests %}
+mkdir -p build_{{ test.name}}
+cd build_{{test.name}}
 cmake --fresh .. -G Ninja {{ test.cmake_cache | join(' ') }} {{ gpu_build_flag }}
 ninja -j4 {{ test.name }}
+cd ..
 {% endfor %}

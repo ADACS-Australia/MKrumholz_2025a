@@ -1,6 +1,6 @@
 hpc:
-  cluster: NT # nt, setonix, gadi, frontier
-  scheduler: slurm  
+  cluster: gadi # nt, setonix, gadi, frontier
+  scheduler: pbs  
   gpu_build: cuda # cuda, hip
   shell: /bin/bash
   
@@ -11,7 +11,9 @@ paths:
 
 global_job_settings:
   ntasks_per_node: 4 # max number of tasks per node
-  mem_per_node: 4G
+  cpus_per_task: 12
+  mem_per_node: 382G
+  jobfs_per_node: 400G
   
 
 scaling:
@@ -29,7 +31,7 @@ tests:
       - -DAMReX_SPACEDIM=3
     job_settings:
       walltime: 00:10:00
-      mem_per_node: 4G
+      
     
 
  

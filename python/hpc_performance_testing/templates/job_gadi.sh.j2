@@ -1,0 +1,37 @@
+#!{{ shell }}
+
+#PBS -N {{ name }}_n{{ core }}
+{% if account %}#PBS -P {{ account }}{% else %}#PBS -P jh2{% endif %}
+
+# merge stdout and stderr to stdout
+#PBS -j oe
+#PBS -o {{ result_dir }}
+
+{% if partition %}#PBS -q {{ partition }}{% else %}#PBS -q gpuvolta{% endif %}
+
+#PBS -l ncpus={{ ncpus }}
+#PBS -l ngpus={{ core }}
+#PBS -l mem={{ mem }}
+#PBS -l walltime={{ walltime }}
+#PBS -l storage=scratch/jh2+gdata/jh2
+#PBS -l jobfs={{ jobfs }}
+
+# Setup and activate environment
+source "{{environment}}"
+
+# Redict output file (to have a universal outpuf file pattern across hpcs)
+jobid=${PBS_JOBID%%.*}
+logfile="{{ result_dir }}/{{ name }}_n{{ core }}_JobID_${jobid}.out"
+
+# Run step
+{% if mpi_opt %}
+MPI_OPTIONS="{{ mpi_opt }}"
+{% else %}
+MPI_OPTIONS="--map-by numa:SPAN --bind-to numa --mca pml ucx"
+{% endif %}
+
+echo "Using MPI_OPTIONS = $MPI_OPTIONS"
+
+
+cd "{{ result_dir }}"
+mpirun -np {{ core }} $MPI_OPTIONS "{{ target }}" "{{ input_file }}" {{ ncell_args }} > $logfile 2>&1

@@ -1,7 +1,7 @@
 hpc:
-  cluster: NT # nt, setonix, gadi, frontier
+  cluster: setonix # nt, setonix, gadi, frontier
   scheduler: slurm  
-  gpu_build: cuda # cuda, hip
+  gpu_build: hip # cuda, hip
   shell: /bin/bash
   
 paths:
@@ -16,7 +16,7 @@ global_job_settings:
 
 scaling:
   strategy: weak_3d
-  min_cores: # default value: 1
+  min_cores: 8 # default value: 1
   max_cores: 64
 
 tests:
