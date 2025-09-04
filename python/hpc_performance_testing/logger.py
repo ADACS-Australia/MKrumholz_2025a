@@ -15,7 +15,7 @@ class LoggerManager:
     def init(cls, log_dir: Path | str = None, name: str = "perf_test"):
         # get logger
         logger = logging.getLogger(name)
-        logger.setLevel(logging.WARNING) # handlers decide the level 
+        logger.setLevel(logging.DEBUG) # handlers decide the level 
         logger.handlers.clear()
 
         # err log
@@ -31,7 +31,7 @@ class LoggerManager:
         cls._log_err_file = log_dir/"runtime_err.log"
                
         err_fh = logging.FileHandler(cls._log_err_file, mode='a')
-        err_fh.setLevel(logging.DEBUG)
+        err_fh.setLevel(logging.WARNING)
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         err_fh.setFormatter(formatter)
         logger.addHandler(err_fh)
