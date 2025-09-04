@@ -38,12 +38,16 @@ class JobResultExtractor:
         file_list = self._find_job_output_files()
 
         # construct a result dataframe
+        logger.debug("Start creating Pandas DataFrame to store results...")
         result = JobDataFrame()
-        logger.info("Create Pandas DataFrame to store results.")
+        logger.debug("Finished dataframe creation.")
+        
         for f in file_list:
+            logger.info(f"Start extracting result from {f}.")
             data_dict = self._process_job_output_files(f, Job_output_FIELD)
             result.add_job_entry(**data_dict)
-            logger.info(f"Extract result from {f}.")
+            logger.info("Done.")
+            
         # save the results as parquet
         result.save(self.root_path/"job_output.parquet")
         logger.info("Save results into parquet.")
@@ -147,7 +151,7 @@ class PbsJobMonitor(JobMonitorBase):
             return {"job_id": job_id, "state": state, "exit_code": exit_code}
 
         except subprocess.CalledProcessError as e:
-            print(f"'qstat -fx' exits with error: {e}")
+            logger.error(f"'qstat -fx' exits with error: {e}")
             return None
 
 class JobStatusChecker:

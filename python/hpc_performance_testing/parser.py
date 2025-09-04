@@ -106,7 +106,7 @@ class JobOutputParser:
         df = self._extract_table(text, table_regex)
 
         if df is None or df.empty:
-            logger.info(f"Table {table_name} is empty or can't be extracted.")
+            logger.warning(f"Table {table_name} is empty or can't be extracted.")
             return {}
 
         if "Name" not in df.columns:
