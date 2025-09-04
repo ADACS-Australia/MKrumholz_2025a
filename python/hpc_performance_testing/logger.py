@@ -75,10 +75,9 @@ class LoggerManager:
     @classmethod
     def add_pipeline_log(cls, test_instance: Path):
         # validate test_instance path
-        print("try to validate the path")
         from hpc_performance_testing.utils import validate_path
         test_instance = validate_path(test_instance)
-        print("finish validating the path")
+        
         pipline_log = test_instance/"perf_test.log"
         pipeline_fh = logging.FileHandler(pipline_log, mode='a')
         pipeline_fh.setLevel(logging.INFO)

@@ -3,8 +3,11 @@ import re
 from io import StringIO
 import pandas as pd
 
+from hpc_performance_testing.logger import LoggerManager
 from hpc_performance_testing.utils import validate_path, flatten_dict
 from hpc_performance_testing.patterns import *
+
+logger = LoggerManager.get_logger()
 
 class JobOutputParser:
     # available table headers
@@ -51,6 +54,7 @@ class JobOutputParser:
         match = pattern.search(text)
 
         if not match:
+            logger.warning(f"No match found for {keys}")
             if n_groups == 1:
                 return None
             return {key: None for key in keys}
@@ -72,7 +76,7 @@ class JobOutputParser:
         match = table_regex.search(text)
 
         if not match:
-            print("Table block not found with full table structure.")
+            logger.warning("Table block not found with full table structure.")
             return None
         
         header = match.group(1).strip()
@@ -102,6 +106,7 @@ class JobOutputParser:
         df = self._extract_table(text, table_regex)
 
         if df is None or df.empty:
+            logger.info(f"Table {table_name} is empty or can't be extracted.")
             return {}
 
         if "Name" not in df.columns:
