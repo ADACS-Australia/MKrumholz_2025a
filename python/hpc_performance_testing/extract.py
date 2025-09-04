@@ -6,12 +6,14 @@ from typing import Optional, Dict
 import re
 import pandas as pd
 
+from hpc_performance_testing.logger import LoggerManager
 from hpc_performance_testing.utils import validate_path
 from hpc_performance_testing.patterns import JOB_OUTPUT_NAME
 from hpc_performance_testing.parser import JobOutput
 from hpc_performance_testing.output import Job_output_FIELD, Job_status_FIELD, JobDataFrame
 from hpc_performance_testing.config import load_yaml
 
+logger = LoggerManager.get_logger()
 class JobResultExtractor:
     def __init__(self, test_instance_config: dict):
         self.config = test_instance_config
@@ -37,13 +39,14 @@ class JobResultExtractor:
 
         # construct a result dataframe
         result = JobDataFrame()
-
+        logger.info("Create Pandas DataFrame to store results.")
         for f in file_list:
             data_dict = self._process_job_output_files(f, Job_output_FIELD)
             result.add_job_entry(**data_dict)
-    
+            logger.info(f"Extract result from {f}.")
         # save the results as parquet
         result.save(self.root_path/"job_output.parquet")
+        logger.info("Save results into parquet.")
 
 class JobStatus(Enum):
     WAIT = "WAIT"
@@ -72,7 +75,7 @@ class SlurmJobMonitor(JobMonitorBase):
                                    check=True)
             return queue
         except subprocess.CalledProcessError as e:
-            print(f"Job {job_id} is no longer in queue.")
+            logger.info(f"Job {job_id} is no longer in queue.")
             return None
     
     @classmethod
@@ -95,7 +98,7 @@ class SlurmJobMonitor(JobMonitorBase):
             return None
 
         except subprocess.CalledProcessError as e:
-            print(f"'sacct' exits with error: {e}")
+            logger.error(f"'sacct' exits with error: {e}")
             return None
 
 class PbsJobMonitor(JobMonitorBase):
@@ -114,11 +117,11 @@ class PbsJobMonitor(JobMonitorBase):
         except subprocess.CalledProcessError as e:
             stderr = e.stderr.strip()
             if "Job has finished" in stderr:
-                print(f"Job {job_id} has finished (not in queue).")
+                logger.info(f"Job {job_id} has finished (not in queue).")
             elif "Unknown Job Id" in stderr:
-                print(f"Job {job_id} not found (possibly too old).")
+                logger.info(f"Job {job_id} not found (possibly too old).")
             else:
-                print(f"qstat returned error for job {job_id}: {stderr}")
+                logger.error(f"qstat returned error for job {job_id}: {stderr}")
             return None
         
     @staticmethod
@@ -199,6 +202,7 @@ class JobStatusChecker:
                     job_status = jmonitor.retrieve_finished_job(job)
                     if job_status is not None:
                         output.add_job_entry(**job_status)
+                        logger.info(f"Job {job} is finished with status {job_status}.")
 
                 output.save(self.output_file)
 
