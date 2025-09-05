@@ -90,9 +90,13 @@ Examples are provided in the [config_yaml](https://github.com/ADACS-Australia/MK
 
 | Field         | Required | Type | Default | Description                                                                                                   |
 | ------------- | -------- | ---- | ------- | ------------------------------------------------------------------------------------------------------------- |
-| `working_dir` | yes       | str | –    | Directory where tests will run.                                                                               |
-| `environment` | yes      | str | –       | Path to environment setup script (see [Preparing an Environment Script](#3-preparing-an-environment-script)). |
-| `test_inputs` | yes      | str | –       | Directory containing quokka input `.in` files.                                                                |
+| `working_dir` | no       | path | "./"    | Root directory where test runs will be saved  |                                                                      
+| `environment` | yes      | path | –       | Path to environment setup script (see [Preparing an Environment Script](#3-preparing-an-environment-script)). |
+| `test_inputs` | yes      | str | –       | Root directory of test input file `.in` files. |
+| `link_files_root` | yes      | str | –       | Root directory of test link files files. |                                                        
+
+**Note:** `working_dir` and `environment` are validated when the YAML file is loaded (they must exist before starting the test run).  
+In contrast, `test_inputs` and `link_files_root` are validated at runtime, after the tests have been built. You may use the environment variable `$QUOKKA` in these two fields, which points to the Quokka repository cloned at runtime.
 
 ---
 #### `global_job_settings` section
@@ -132,15 +136,18 @@ Each entry in `tests` defines a single quokka test case.
 | Field          | Required | Type      | Default | Description                                |
 | -------------- | -------- | --------- | ------- | ------------------------------------------ |
 | `name`         | yes      | str    | –       | Friendly name for the test.                |
-| `target`       | yes      | path      | –       | Path to Quokka target (relative to build). |
-| `input_file`   | yes      | filename  | –       | Input `.in` file to run.                   |
-| `cmake_cache`  | no       | list[str] | –      | Extra CMake options for Quokka build.      |
-| `job_settings` | no       | same as `global_job_settings`      | –      | Per-test job overrides.                    |
+| `target`       | yes      | str      | –       | Path to Quokka target (relative to `<build dir>/src/problems`). |
+| `input_file`   | yes      | str | –       | Input `.in` file to run.                   |
+| `link_file`   | no      | str or list  | None      | Link file(s) required by `input_file`                 |
+| `cmake_cache`  | no       | list[str] | None     | Extra CMake options for Quokka build.      |
+| `job_settings` | no       | same as `global_job_settings`      | None      | Per-test job overrides.                    |
 
 **Note:**  
 The `job_settings` block accepts the same fields as [`global_job_settings`](#global_job_settings-section).  
 Any value defined here overrides the corresponding global value.  
 If a field is omitted, the global setting applies.
+
+If `link_file` is not None, a symlink will be created at the relevant test directory. 
 
 ## 5. Running the Pipeline
 
