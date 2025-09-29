@@ -25,6 +25,10 @@ jinja2 = "3.1.*"
 pandas = "^2.2.2"
 fastparquet = "^2024.11.0"
 pydantic = "^2.11.7"
+matplotlib = "^3.9.0"
+numpy = "^1.26.0"
+pyyaml = "^6.0"
+plotly = "^5.0.0"
 
 [tool.poetry.group.docs.dependencies]
 Sphinx = "^6"
